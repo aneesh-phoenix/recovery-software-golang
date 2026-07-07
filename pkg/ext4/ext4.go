@@ -26,16 +26,16 @@ const (
 
 // Superblock holds key ext4 superblock fields.
 type Superblock struct {
-	TotalInodes      uint32
-	TotalBlocks      uint64
-	BlockSize        uint32
-	BlocksPerGroup   uint32
-	InodesPerGroup   uint32
-	InodeSize        uint16
-	Magic            uint16
-	FirstDataBlock   uint32
-	GroupDescSize    uint16
-	Feature64bit     bool
+	TotalInodes    uint32
+	TotalBlocks    uint64
+	BlockSize      uint32
+	BlocksPerGroup uint32
+	InodesPerGroup uint32
+	InodeSize      uint16
+	Magic          uint16
+	FirstDataBlock uint32
+	GroupDescSize  uint16
+	Feature64bit   bool
 }
 
 // GroupDescriptor represents a block group descriptor.
@@ -52,23 +52,24 @@ type GroupDescriptor struct {
 
 // Inode represents a parsed ext4 inode.
 type Inode struct {
-	Number     uint32
-	Mode       uint16
-	Size       int64
-	Blocks     uint64
-	Flags      uint32
-	LinkCount  uint16
+	Number       uint32
+	Mode         uint16
+	Size         int64
+	Blocks       uint64
+	Flags        uint32
+	LinkCount    uint16
 	DeletionTime uint32
-	Extents    []Extent
-	BlockPtrs  [15]uint32
+	Extents      []Extent
+	ExtentRoot   []byte
+	BlockPtrs    [15]uint32
 }
 
 // Extent represents an ext4 extent (for extent-based files).
 type Extent struct {
-	Block     uint32 // Logical block number
-	Length    uint16 // Number of blocks
-	StartHi  uint16 // High 16 bits of physical block
-	StartLo  uint32 // Low 32 bits of physical block
+	Block   uint32 // Logical block number
+	Length  uint16 // Number of blocks
+	StartHi uint16 // High 16 bits of physical block
+	StartLo uint32 // Low 32 bits of physical block
 }
 
 // IsDeleted returns true if the inode appears to be deleted.
@@ -237,7 +238,8 @@ func (p *Ext4Parser) ReadInode(inodeNum uint32) (*Inode, error) {
 
 	// Parse block pointers or extents
 	if inode.Flags&InodeFlagExtents != 0 {
-		inode.Extents = parseExtents(buf[0x28:0x64])
+		inode.ExtentRoot = append([]byte(nil), buf[0x28:0x64]...)
+		inode.Extents = parseExtents(inode.ExtentRoot)
 	} else {
 		for i := 0; i < 15; i++ {
 			inode.BlockPtrs[i] = binary.LittleEndian.Uint32(buf[0x28+i*4 : 0x28+i*4+4])
@@ -284,8 +286,11 @@ func (p *Ext4Parser) RecoverInodeData(inode *Inode) ([]byte, error) {
 	var data []byte
 
 	if inode.Flags&InodeFlagExtents != 0 {
-		// Extent-based file
-		for _, ext := range inode.Extents {
+		extents, err := p.collectExtents(inode)
+		if err != nil {
+			return nil, err
+		}
+		for _, ext := range extents {
 			physBlock := ext.PhysicalBlock()
 			if physBlock == 0 {
 				continue
@@ -300,8 +305,11 @@ func (p *Ext4Parser) RecoverInodeData(inode *Inode) ([]byte, error) {
 			data = append(data, buf[:n]...)
 		}
 	} else {
-		// Block pointer based (direct blocks only for simplicity)
-		for _, ptr := range inode.BlockPtrs[:12] {
+		blocks, err := p.collectLegacyBlocks(inode)
+		if err != nil {
+			return nil, err
+		}
+		for _, ptr := range blocks {
 			if ptr == 0 {
 				break
 			}
@@ -323,6 +331,140 @@ func (p *Ext4Parser) RecoverInodeData(inode *Inode) ([]byte, error) {
 	return data, nil
 }
 
+func (p *Ext4Parser) collectExtents(inode *Inode) ([]Extent, error) {
+	if len(inode.ExtentRoot) == 0 {
+		return inode.Extents, nil
+	}
+	return p.parseExtentNode(inode.ExtentRoot, 0)
+}
+
+func (p *Ext4Parser) parseExtentNode(data []byte, depth uint16) ([]Extent, error) {
+	if len(data) < 12 {
+		return nil, fmt.Errorf("extent node is too small")
+	}
+	magic := binary.LittleEndian.Uint16(data[0:2])
+	if magic != 0xF30A {
+		return nil, fmt.Errorf("invalid extent magic: 0x%04X", magic)
+	}
+
+	entries := binary.LittleEndian.Uint16(data[2:4])
+	nodeDepth := binary.LittleEndian.Uint16(data[6:8])
+	if nodeDepth == 0 {
+		return parseExtentLeafEntries(data, entries), nil
+	}
+	if depth > 5 {
+		return nil, fmt.Errorf("extent tree is too deep")
+	}
+
+	var extents []Extent
+	for i := uint16(0); i < entries && int(12+i*12+12) <= len(data); i++ {
+		off := 12 + i*12
+		leafLo := binary.LittleEndian.Uint32(data[off+4 : off+8])
+		leafHi := binary.LittleEndian.Uint16(data[off+8 : off+10])
+		childBlock := int64(leafHi)<<32 | int64(leafLo)
+		if childBlock == 0 {
+			continue
+		}
+
+		child := make([]byte, p.sb.BlockSize)
+		n, err := p.reader.ReadAt(child, p.partition+childBlock*int64(p.sb.BlockSize))
+		if err != nil && n == 0 {
+			return nil, fmt.Errorf("failed to read extent tree block %d: %w", childBlock, err)
+		}
+		childExtents, err := p.parseExtentNode(child[:n], depth+1)
+		if err != nil {
+			return nil, err
+		}
+		extents = append(extents, childExtents...)
+	}
+	return extents, nil
+}
+
+func (p *Ext4Parser) collectLegacyBlocks(inode *Inode) ([]uint32, error) {
+	needed := blocksForSize(inode.Size, int64(p.sb.BlockSize))
+	var blocks []uint32
+	appendBlock := func(block uint32) bool {
+		if block == 0 {
+			return true
+		}
+		blocks = append(blocks, block)
+		return int64(len(blocks)) < needed
+	}
+
+	for _, ptr := range inode.BlockPtrs[:12] {
+		if !appendBlock(ptr) {
+			return blocks, nil
+		}
+	}
+	if inode.BlockPtrs[12] != 0 {
+		more, err := p.readIndirectBlocks(inode.BlockPtrs[12], 1, needed-int64(len(blocks)))
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, more...)
+	}
+	if int64(len(blocks)) >= needed {
+		return blocks[:needed], nil
+	}
+	if inode.BlockPtrs[13] != 0 {
+		more, err := p.readIndirectBlocks(inode.BlockPtrs[13], 2, needed-int64(len(blocks)))
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, more...)
+	}
+	if int64(len(blocks)) >= needed {
+		return blocks[:needed], nil
+	}
+	if inode.BlockPtrs[14] != 0 {
+		more, err := p.readIndirectBlocks(inode.BlockPtrs[14], 3, needed-int64(len(blocks)))
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, more...)
+	}
+	if int64(len(blocks)) > needed {
+		blocks = blocks[:needed]
+	}
+	return blocks, nil
+}
+
+func (p *Ext4Parser) readIndirectBlocks(block uint32, depth int, limit int64) ([]uint32, error) {
+	if block == 0 || limit <= 0 {
+		return nil, nil
+	}
+	buf := make([]byte, p.sb.BlockSize)
+	n, err := p.reader.ReadAt(buf, p.partition+int64(block)*int64(p.sb.BlockSize))
+	if err != nil && n == 0 {
+		return nil, fmt.Errorf("failed to read indirect block %d: %w", block, err)
+	}
+
+	var blocks []uint32
+	for i := 0; i+4 <= n && int64(len(blocks)) < limit; i += 4 {
+		ptr := binary.LittleEndian.Uint32(buf[i : i+4])
+		if ptr == 0 {
+			continue
+		}
+		if depth == 1 {
+			blocks = append(blocks, ptr)
+			continue
+		}
+		child, err := p.readIndirectBlocks(ptr, depth-1, limit-int64(len(blocks)))
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, child...)
+	}
+	return blocks, nil
+}
+
+func blocksForSize(size, blockSize int64) int64 {
+	if size <= 0 || blockSize <= 0 {
+		return 0
+	}
+	return (size + blockSize - 1) / blockSize
+}
+
 // parseExtents parses the extent tree from the inode block area (60 bytes).
 func parseExtents(data []byte) []Extent {
 	if len(data) < 12 {
@@ -336,9 +478,15 @@ func parseExtents(data []byte) []Extent {
 	}
 
 	entries := binary.LittleEndian.Uint16(data[2:4])
-	// depth := binary.LittleEndian.Uint16(data[6:8])
+	depth := binary.LittleEndian.Uint16(data[6:8])
+	if depth != 0 {
+		return nil
+	}
 
-	// Only handle leaf nodes (depth == 0) for now
+	return parseExtentLeafEntries(data, entries)
+}
+
+func parseExtentLeafEntries(data []byte, entries uint16) []Extent {
 	var extents []Extent
 	for i := uint16(0); i < entries && int(12+i*12+12) <= len(data); i++ {
 		off := 12 + i*12

@@ -31,6 +31,11 @@ sudo ./recover ext4 /dev/sda2 ./recovered
 # With verbose output
 sudo ./recover carve -v /dev/sda ./recovered
 
+# Scan only selected raw file types
+sudo ./recover carve -type pdf /dev/sda ./recovered
+sudo ./recover carve -type docx /dev/sda ./recovered
+sudo ./recover carve -type pdf,zip /dev/sda ./recovered
+
 # Specify partition offset
 sudo ./recover ntfs -offset 1048576 /dev/sda ./recovered
 ```
@@ -58,6 +63,13 @@ Tries NTFS, then ext4, then falls back to raw carving.
 | DOCX | ZIP with `word/` content |
 | XLSX | ZIP with `xl/` content |
 | PPTX | ZIP with `ppt/` content |
+
+Interactive mode lets you choose all supported files or focus recovery on one
+type: PDF, ZIP, DOCX, XLSX, or PPTX.
+
+Raw carving scans PDF and ZIP signatures. Office Open XML files are recovered
+once as ZIP archives, validated, filtered by the requested type, then renamed
+based on their ZIP directory contents.
 
 ## Testing
 

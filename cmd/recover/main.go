@@ -80,6 +80,7 @@ OPTIONS:
     -v           Verbose output
     -offset      Partition offset in bytes (default: 0)
     -block-size  Block size for scanning in bytes (default: 4096)
+    -type        File types to recover: pdf, zip, docx, xlsx, pptx (default: all)
 
 EXAMPLES:
     # Interactive mode (recommended for beginners)
@@ -107,6 +108,7 @@ func runCarve(args []string) {
 	fs := flag.NewFlagSet("carve", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "Verbose output")
 	blockSize := fs.Int("block-size", 4096, "Block size for scanning")
+	typeFilters := fs.String("type", "", "File types to recover: pdf, zip, docx, xlsx, pptx")
 	fs.Parse(args)
 
 	if fs.NArg() < 2 {
@@ -119,12 +121,16 @@ func runCarve(args []string) {
 
 	fmt.Printf("[*] Starting file carving on %s\n", diskPath)
 	fmt.Printf("[*] Output directory: %s\n", outputDir)
+	if *typeFilters != "" {
+		fmt.Printf("[*] File types: %s\n", *typeFilters)
+	}
 
 	c, err := carver.New(carver.Config{
-		DiskPath:  diskPath,
-		OutputDir: outputDir,
-		BlockSize: *blockSize,
-		Verbose:   *verbose,
+		DiskPath:    diskPath,
+		OutputDir:   outputDir,
+		BlockSize:   *blockSize,
+		TypeFilters: *typeFilters,
+		Verbose:     *verbose,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -133,7 +139,11 @@ func runCarve(args []string) {
 	defer c.Close()
 
 	fmt.Printf("[*] Disk size: %s\n", formatSize(c.DiskSize()))
-	fmt.Println("[*] Scanning for PDF, ZIP, DOCX, XLSX, PPTX files...")
+	if *typeFilters == "" {
+		fmt.Println("[*] Scanning for PDF and ZIP files (ZIPs are classified as DOCX/XLSX/PPTX when applicable)...")
+	} else {
+		fmt.Println("[*] Scanning selected file types...")
+	}
 
 	startTime := time.Now()
 	lastProgress := time.Now()
@@ -187,6 +197,7 @@ func runNTFS(args []string) {
 	verbose := fs.Bool("v", false, "Verbose output")
 	partOffset := fs.Int64("offset", 0, "Partition offset in bytes")
 	maxEntries := fs.Int("max-entries", 50000, "Maximum MFT entries to scan")
+	typeFilters := fs.String("type", "", "File types to recover: pdf, zip, docx, xlsx, pptx")
 	fs.Parse(args)
 
 	if fs.NArg() < 2 {
@@ -196,8 +207,16 @@ func runNTFS(args []string) {
 
 	diskPath := fs.Arg(0)
 	outputDir := fs.Arg(1)
+	targetTypes, err := parseTargetFileTypes(*typeFilters)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("[*] NTFS recovery on %s (offset: %d)\n", diskPath, *partOffset)
+	if *typeFilters != "" {
+		fmt.Printf("[*] File types: %s\n", *typeFilters)
+	}
 
 	reader, err := scanner.NewDiskReader(diskPath)
 	if err != nil {
@@ -247,7 +266,7 @@ func runNTFS(args []string) {
 
 		// Check if this is a target file type
 		ext := getExtension(entry.FileName)
-		if !isTargetFile(ext) {
+		if !isTargetFile(ext, targetTypes) {
 			return
 		}
 
@@ -311,6 +330,7 @@ func runExt4(args []string) {
 	verbose := fs.Bool("v", false, "Verbose output")
 	partOffset := fs.Int64("offset", 0, "Partition offset in bytes")
 	maxGroups := fs.Int("max-groups", 100, "Maximum block groups to scan")
+	typeFilters := fs.String("type", "", "File types to recover: pdf, zip, docx, xlsx, pptx")
 	fs.Parse(args)
 
 	if fs.NArg() < 2 {
@@ -320,8 +340,16 @@ func runExt4(args []string) {
 
 	diskPath := fs.Arg(0)
 	outputDir := fs.Arg(1)
+	targetTypes, err := parseTargetFileTypes(*typeFilters)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("[*] ext4 recovery on %s (offset: %d)\n", diskPath, *partOffset)
+	if *typeFilters != "" {
+		fmt.Printf("[*] File types: %s\n", *typeFilters)
+	}
 
 	reader, err := scanner.NewDiskReader(diskPath)
 	if err != nil {
@@ -384,7 +412,7 @@ func runExt4(args []string) {
 
 		// Detect file type from content
 		fileType, ext := detectFileType(data)
-		if !isTargetFile(ext) {
+		if !isTargetFile(ext, targetTypes) {
 			return
 		}
 
@@ -425,6 +453,7 @@ func runAuto(args []string) {
 	fs := flag.NewFlagSet("auto", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "Verbose output")
 	partOffset := fs.Int64("offset", 0, "Partition offset in bytes")
+	typeFilters := fs.String("type", "", "File types to recover: pdf, zip, docx, xlsx, pptx")
 	fs.Parse(args)
 
 	if fs.NArg() < 2 {
@@ -434,8 +463,15 @@ func runAuto(args []string) {
 
 	diskPath := fs.Arg(0)
 	outputDir := fs.Arg(1)
+	if _, err := parseTargetFileTypes(*typeFilters); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("[*] Auto-detecting filesystem on %s...\n", diskPath)
+	if *typeFilters != "" {
+		fmt.Printf("[*] File types: %s\n", *typeFilters)
+	}
 
 	reader, err := scanner.NewDiskReader(diskPath)
 	if err != nil {
@@ -455,6 +491,9 @@ func runAuto(args []string) {
 		if *partOffset != 0 {
 			newArgs = append(newArgs, "-offset", fmt.Sprintf("%d", *partOffset))
 		}
+		if *typeFilters != "" {
+			newArgs = append(newArgs, "-type", *typeFilters)
+		}
 		newArgs = append(newArgs, diskPath, outputDir)
 		runNTFS(newArgs)
 		return
@@ -472,6 +511,9 @@ func runAuto(args []string) {
 		if *partOffset != 0 {
 			newArgs = append(newArgs, "-offset", fmt.Sprintf("%d", *partOffset))
 		}
+		if *typeFilters != "" {
+			newArgs = append(newArgs, "-type", *typeFilters)
+		}
 		newArgs = append(newArgs, diskPath, outputDir)
 		runExt4(newArgs)
 		return
@@ -484,6 +526,9 @@ func runAuto(args []string) {
 	newArgs := []string{}
 	if *verbose {
 		newArgs = append(newArgs, "-v")
+	}
+	if *typeFilters != "" {
+		newArgs = append(newArgs, "-type", *typeFilters)
 	}
 	newArgs = append(newArgs, diskPath, outputDir)
 	runCarve(newArgs)
@@ -671,7 +716,25 @@ func runInteractive() {
 
 	method := methodItems[methodIdx].Value
 
-	// Step 4: Verbose?
+	// Step 4: Target file types
+	tui.Header("STEP 4: Select FILE TYPES")
+	typeItems := []tui.MenuItem{
+		{Label: "All supported files", Description: "PDF, ZIP, DOCX, XLSX, PPTX", Value: ""},
+		{Label: "PDF only", Description: "%PDF documents", Value: "pdf"},
+		{Label: "ZIP only", Description: "plain ZIP archives", Value: "zip"},
+		{Label: "DOCX only", Description: "Word documents inside ZIP archives", Value: "docx"},
+		{Label: "XLSX only", Description: "Excel workbooks inside ZIP archives", Value: "xlsx"},
+		{Label: "PPTX only", Description: "PowerPoint files inside ZIP archives", Value: "pptx"},
+	}
+	typeIdx, err := tui.SelectOption("Select file types to recover:", typeItems)
+	if err != nil {
+		fmt.Printf("\n  Cancelled.\n")
+		os.Exit(0)
+	}
+	typeFilter := typeItems[typeIdx].Value
+	typeLabel := typeItems[typeIdx].Label
+
+	// Step 5: Verbose?
 	tui.Header("OPTIONS")
 	verbose, err := tui.Confirm("Enable verbose output? (shows each file as it's found)", false)
 	if err != nil {
@@ -686,6 +749,7 @@ func runInteractive() {
 	fmt.Printf("   │  Source:   %-47s│\n", sourcePath)
 	fmt.Printf("   │  Output:   %-47s│\n", outputDir)
 	fmt.Printf("   │  Method:   %-47s│\n", methodItems[methodIdx].Label)
+	fmt.Printf("   │  Types:    %-47s│\n", typeLabel)
 	fmt.Printf("   │  Verbose:  %-47v│\n", verbose)
 	fmt.Println("  └────────────────────────────────────────────────────────────────────────────────────────┘")
 	fmt.Println()
@@ -704,6 +768,9 @@ func runInteractive() {
 	var args []string
 	if verbose {
 		args = append(args, "-v")
+	}
+	if typeFilter != "" {
+		args = append(args, "-type", typeFilter)
 	}
 	args = append(args, sourcePath, outputDir)
 
@@ -828,7 +895,7 @@ func listDisksWindows() []diskInfo {
 
 // listDisksLinux uses lsblk to enumerate disks on Linux.
 func listDisksLinux() []diskInfo {
-	cmd := exec.Command("lsblk", "-bno", "PATH,SIZE,TYPE,FSTYPE,MOUNTPOINT,MODEL")
+	cmd := exec.Command("lsblk", "-P", "-bno", "PATH,SIZE,TYPE,FSTYPE,MOUNTPOINT,MODEL")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil
@@ -836,36 +903,72 @@ func listDisksLinux() []diskInfo {
 
 	var disks []diskInfo
 	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
+		fields := parseLSBLKPairs(line)
+		if fields["PATH"] == "" || fields["SIZE"] == "" || fields["TYPE"] == "" {
+			continue
+		}
+		if fields["TYPE"] == "loop" {
 			continue
 		}
 
 		d := diskInfo{
-			Path: fields[0],
-			Type: fields[2],
+			Path:       fields["PATH"],
+			Type:       fields["TYPE"],
+			FSType:     fields["FSTYPE"],
+			MountPoint: fields["MOUNTPOINT"],
+			Model:      fields["MODEL"],
 		}
 
-		if sizeBytes, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+		if sizeBytes, err := strconv.ParseInt(fields["SIZE"], 10, 64); err == nil {
 			d.Size = formatSize(sizeBytes)
 		} else {
-			d.Size = fields[1]
-		}
-
-		if len(fields) > 3 {
-			d.FSType = fields[3]
-		}
-		if len(fields) > 4 {
-			d.MountPoint = fields[4]
-		}
-		if len(fields) > 5 {
-			d.Model = strings.Join(fields[5:], " ")
+			d.Size = fields["SIZE"]
 		}
 
 		disks = append(disks, d)
 	}
 
 	return disks
+}
+
+func parseLSBLKPairs(line string) map[string]string {
+	result := make(map[string]string)
+	i := 0
+	for i < len(line) {
+		for i < len(line) && line[i] == ' ' {
+			i++
+		}
+		keyStart := i
+		for i < len(line) && line[i] != '=' {
+			i++
+		}
+		if i >= len(line) {
+			break
+		}
+		key := line[keyStart:i]
+		i++
+		if i >= len(line) || line[i] != '"' {
+			break
+		}
+		i++
+		var value strings.Builder
+		for i < len(line) {
+			if line[i] == '\\' && i+1 < len(line) {
+				i++
+				value.WriteByte(line[i])
+				i++
+				continue
+			}
+			if line[i] == '"' {
+				i++
+				break
+			}
+			value.WriteByte(line[i])
+			i++
+		}
+		result[key] = value.String()
+	}
+	return result
 }
 
 // listDisksFallback reads /proc/partitions when lsblk isn't available.
@@ -1062,7 +1165,35 @@ func isElevated() bool {
 	return false
 }
 
-func isTargetFile(ext string) bool {
+func parseTargetFileTypes(typeList string) (map[string]bool, error) {
+	if strings.TrimSpace(typeList) == "" {
+		return nil, nil
+	}
+	supported := map[string]bool{
+		"pdf":  true,
+		"zip":  true,
+		"docx": true,
+		"xlsx": true,
+		"pptx": true,
+	}
+	selected := make(map[string]bool)
+	for _, part := range strings.Split(typeList, ",") {
+		key := strings.ToLower(strings.TrimSpace(part))
+		if key == "" {
+			continue
+		}
+		if !supported[key] {
+			return nil, fmt.Errorf("unsupported file type %q (supported: pdf, zip, docx, xlsx, pptx)", key)
+		}
+		selected["."+key] = true
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no file types selected")
+	}
+	return selected, nil
+}
+
+func isTargetFile(ext string, selected map[string]bool) bool {
 	targets := map[string]bool{
 		".pdf":  true,
 		".zip":  true,
@@ -1070,7 +1201,13 @@ func isTargetFile(ext string) bool {
 		".xlsx": true,
 		".pptx": true,
 	}
-	return targets[ext]
+	if !targets[ext] {
+		return false
+	}
+	if len(selected) == 0 {
+		return true
+	}
+	return selected[ext]
 }
 
 func getExtension(filename string) string {
