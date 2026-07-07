@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>recovery-soft Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --sidebar-bg: #1a1a2e;
+            --header-bg: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --text: #333;
+            --text-light: #666;
+            --bg: #f8f9fa;
+            --white: #ffffff;
+            --code-bg: #1e1e1e;
+            --sidebar-width: 280px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-header h1 {
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .sidebar-header p {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+        }
+
+        .sidebar nav ul li a {
+            display: block;
+            padding: 0.6rem 1.5rem;
+            color: rgba(255,255,255,0.75);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar nav ul li a:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+            border-left-color: var(--highlight);
+        }
+
+        .sidebar nav ul li a.active {
+            color: #fff;
+            background: rgba(233, 69, 96, 0.1);
+            border-left-color: var(--highlight);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem 3rem 4rem;
+            max-width: 900px;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--header-bg), var(--accent));
+            color: #fff;
+            padding: 3rem;
+            border-radius: 12px;
+            margin-bottom: 3rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+        }
+
+        .hero .badges {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .hero .badge {
+            background: rgba(255,255,255,0.15);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Sections */
+        section {
+            margin-bottom: 3rem;
+        }
+
+        section h2 {
+            font-size: 1.8rem;
+            color: var(--header-bg);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            padding-left: 1rem;
+            border-left: 4px solid var(--highlight);
+        }
+
+        section h3 {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin: 1.5rem 0 0.8rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        /* Content Cards */
+        .card {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        /* Code Blocks */
+        pre {
+            background: var(--code-bg);
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0 1.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85em;
+        }
+
+        p code, li code {
+            background: #e8edf3;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            color: var(--accent);
+        }
+
+        /* Syntax Highlighting */
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .type { color: #4ec9b0; }
+        .func { color: #dcdcaa; }
+        .number { color: #b5cea8; }
+
+        /* Callouts */
+        .callout {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .callout-warning {
+            background: rgba(233, 69, 96, 0.08);
+            border-left-color: var(--highlight);
+        }
+
+        .callout-warning .callout-title {
+            color: var(--highlight);
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .callout-info {
+            background: rgba(15, 52, 96, 0.08);
+            border-left-color: var(--accent);
+        }
+
+        .callout-info .callout-title {
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.92rem;
+        }
+
+        thead {
+            background: var(--sidebar);
+        }
+
+        thead th {
+            color: #e0e0e0;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e8e8e8;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tbody td {
+            padding: 0.7rem 1rem;
+        }
+
+        tbody td code {
+            background: #f0f0f0;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+
+        /* Directory Tree */
+        .dir-tree {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 2;
+        }
+
+        .dir-tree .folder { color: #569cd6; }
+        .dir-tree .file { color: #d4d4d4; }
+        .dir-tree .desc { color: #6a9955; }
+
+        /* Back to Top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 45px;
+            height: 45px;
+            background: var(--highlight);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            transition: transform 0.2s, opacity 0.2s;
+            opacity: 0;
+            transform: translateY(10px);
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                max-height: 50vh;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>recovery-soft</h1>
+            <p>File Recovery Tool Docs</p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#what-is-recovery">1. What is File Recovery?</a></li>
+                <li><a href="#architecture">2. Project Architecture</a></li>
+                <li><a href="#scanner">3. How the Scanner Works</a></li>
+                <li><a href="#signatures">4. File Signatures</a></li>
+                <li><a href="#carver">5. The Carving Engine</a></li>
+                <li><a href="#ntfs">6. NTFS Recovery</a></li>
+                <li><a href="#ext4">7. ext4 Recovery</a></li>
+                <li><a href="#usage">8. Usage Guide</a></li>
+                <li><a href="#interactive-mode">8b. Interactive Mode</a></li>
+                <li><a href="#testing">9. Testing</a></li>
+                <li><a href="#troubleshooting">10. Troubleshooting</a></li>
+                <li><a href="#extending">11. Adding File Types</a></li>
+                <li><a href="#filesystems">12. Adding Filesystems</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Hero Section -->
+        <div class="hero" id="home">
+            <h1>recovery-soft</h1>
+            <p>A Go-based file recovery tool that recovers PDF and ZIP files from formatted or corrupted disks, with full NTFS and ext4 filesystem awareness.</p>
+            <div class="badges">
+                <span class="badge">Go</span>
+                <span class="badge">PDF Recovery</span>
+                <span class="badge">ZIP/DOCX/XLSX</span>
+                <span class="badge">NTFS</span>
+                <span class="badge">ext4</span>
+                <span class="badge">Raw Carving</span>
+            </div>
+        </div>
+
+        <!-- Section 1: What is File Recovery? -->
+        <section id="what-is-recovery">
+            <h2>What is File Recovery?</h2>
+
+            <div class="card">
+                <h3>How Deletion Actually Works</h3>
+                <p>When you delete a file on your computer, the data is <strong>not</strong> immediately erased from the disk. Instead, the operating system simply marks the space as "available for reuse." Think of it like a library removing a book's entry from the catalog — the book is still on the shelf, but nobody knows where to find it.</p>
+
+                <p>At the disk level, here's what happens:</p>
+                <ol style="margin: 1rem 0 1rem 1.5rem;">
+                    <li style="margin-bottom: 0.5rem;"><strong>Filesystem metadata is updated</strong> — The directory entry or inode is marked as deleted</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Data blocks are freed</strong> — The blocks are added to the "free space" pool</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Actual data remains</strong> — The raw bytes on disk are untouched until overwritten</li>
+                </ol>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">⚠️ Important</div>
+                    <p>The longer you wait after deletion, the higher the chance that new data will overwrite the old file blocks. Run recovery tools as soon as possible after data loss.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>What is File Carving?</h3>
+                <p>File carving is a recovery technique that scans raw disk bytes looking for known file patterns — without relying on any filesystem metadata. It's like searching through a pile of shredded documents by recognizing the header and footer of each page.</p>
+
+                <p>Every file format has unique identifiers called <strong>magic bytes</strong> (or file signatures):</p>
+                <ul style="margin: 1rem 0 1rem 1.5rem;">
+                    <li style="margin-bottom: 0.5rem;"><code>%PDF</code> (hex: <code>25 50 44 46</code>) marks the start of a PDF file</li>
+                    <li style="margin-bottom: 0.5rem;"><code>PK\x03\x04</code> (hex: <code>50 4B 03 04</code>) marks the start of a ZIP file</li>
+                    <li style="margin-bottom: 0.5rem;"><code>%%EOF</code> marks the end of a PDF file</li>
+                </ul>
+
+                <p>The carver reads disk data block-by-block, checking each block for these signatures. When a header is found, it continues reading until the corresponding footer is located, then extracts everything in between as a recovered file.</p>
+            </div>
+
+            <div class="card">
+                <h3>Filesystem Metadata Recovery</h3>
+                <p>While carving works on any disk regardless of filesystem state, <strong>filesystem-aware recovery</strong> can produce much better results when the metadata structures are still partially intact.</p>
+
+                <p><strong>NTFS (Windows)</strong> uses a Master File Table (MFT) — a database-like structure that records every file's name, size, timestamps, and disk locations. Even after formatting, MFT entries often survive.</p>
+
+                <p><strong>ext4 (Linux)</strong> uses inodes — data structures that store file metadata and pointers to data blocks. Deleted inodes retain much of this information, including deletion timestamps.</p>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 Key Insight</div>
+                    <p>Filesystem-aware recovery can restore original filenames and directory structures, while raw carving can only produce generically-named files (e.g., <code>recovered_001.pdf</code>).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Project Architecture -->
+        <section id="architecture">
+            <h2>Project Architecture</h2>
+
+            <div class="card">
+                <h3>Directory Structure</h3>
+                <p>The project follows Go's standard layout with a <code>cmd/</code> directory for the binary entry point and a <code>pkg/</code> directory for reusable library packages:</p>
+
+                <pre><div class="dir-tree"><span class="folder">recovery-soft/</span>
+├── <span class="folder">cmd/</span>
+│   └── <span class="folder">recover/</span>
+│       └── <span class="file">main.go</span>          <span class="desc">// CLI entry point — parses flags, dispatches to recovery modes</span>
+├── <span class="folder">pkg/</span>
+│   ├── <span class="folder">signature/</span>
+│   │   └── <span class="file">signature.go</span>   <span class="desc">// File type signatures (magic bytes for PDF, ZIP, etc.)</span>
+│   ├── <span class="folder">scanner/</span>
+│   │   └── <span class="file">scanner.go</span>     <span class="desc">// Low-level disk I/O — block reading, seeking</span>
+│   ├── <span class="folder">carver/</span>
+│   │   └── <span class="file">carver.go</span>      <span class="desc">// Signature-based file carving engine</span>
+│   ├── <span class="folder">ntfs/</span>
+│   │   └── <span class="file">ntfs.go</span>        <span class="desc">// NTFS boot sector, MFT, and data run parsing</span>
+│   ├── <span class="folder">ext4/</span>
+│   │   └── <span class="file">ext4.go</span>        <span class="desc">// ext4 superblock, group descriptors, inode parsing</span>
+│   └── <span class="folder">output/</span>
+│       └── <span class="file">output.go</span>      <span class="desc">// Report generation — file listing, stats</span>
+├── <span class="file">go.mod</span>
+├── <span class="file">README.md</span>
+└── <span class="file">test_recovery.sh</span>       <span class="desc">// Integration test script</span></div></pre>
+            </div>
+
+            <div class="card">
+                <h3>How the Pieces Fit Together</h3>
+                <p>The architecture follows a layered design where each package has a single responsibility:</p>
+
+                <ol style="margin: 1rem 0 1rem 1.5rem;">
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>cmd/recover/main.go</code></strong> — The CLI parses command-line arguments (mode, device path, output directory) and dispatches to the appropriate recovery engine.
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>pkg/scanner</code></strong> — Provides the low-level foundation: opening devices, reading blocks at arbitrary offsets, and iterating over entire disks in fixed-size chunks.
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>pkg/signature</code></strong> — Defines what files look like at the byte level. The carver and filesystem parsers both use these signatures to identify file types.
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>pkg/carver</code></strong> — The raw carving engine. Uses the scanner to read blocks and signatures to detect files. This is the filesystem-independent fallback.
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>pkg/ntfs</code> &amp; <code>pkg/ext4</code></strong> — Filesystem-specific parsers that understand metadata structures. They extract filenames, sizes, and data locations from MFT entries (NTFS) or inodes (ext4).
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong><code>pkg/output</code></strong> — Handles writing recovered files to disk and generating summary reports.
+                    </li>
+                </ol>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 Design Philosophy</div>
+                    <p>Each package can be tested independently. The scanner doesn't know about file types. The signatures don't know about disk I/O. This separation makes the code easier to understand, test, and extend.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: How the Scanner Works -->
+        <section id="scanner">
+            <h2>How the Scanner Works</h2>
+
+            <div class="card">
+                <h3>Overview</h3>
+                <p>The scanner package (<code>pkg/scanner/scanner.go</code>) provides the foundation for all disk access in recovery-soft. It abstracts away the complexities of reading from block devices and provides a clean, thread-safe interface for the higher-level recovery engines.</p>
+            </div>
+
+            <div class="card">
+                <h3>The DiskReader Struct</h3>
+                <p>At the core of the scanner is the <code>DiskReader</code> struct, which wraps Go's standard <code>os.File</code> with additional metadata and synchronization:</p>
+
+                <pre><span class="keyword">type</span> <span class="type">DiskReader</span> <span class="keyword">struct</span> {
+    file      *os.<span class="type">File</span>       <span class="comment">// The underlying file or block device</span>
+    size      <span class="type">int64</span>          <span class="comment">// Total size in bytes</span>
+    blockSize <span class="type">int</span>            <span class="comment">// Read chunk size (default: 4096 bytes)</span>
+    mu        sync.<span class="type">Mutex</span>     <span class="comment">// Protects concurrent access to file handle</span>
+}</pre>
+
+                <p>The struct stores the file handle, pre-calculated size, configurable block size, and a mutex for thread safety. The block size of 4096 bytes matches the most common filesystem allocation unit size, which means each read aligns with potential file boundaries.</p>
+            </div>
+
+            <div class="card">
+                <h3>NewDiskReader — Opening a Device</h3>
+                <p>The constructor handles both regular files (like disk images) and actual block devices:</p>
+
+                <pre><span class="keyword">func</span> <span class="func">NewDiskReader</span>(path <span class="type">string</span>, blockSize <span class="type">int</span>) (*<span class="type">DiskReader</span>, <span class="type">error</span>) {
+    file, err := os.<span class="func">Open</span>(path)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> {
+        <span class="keyword">return</span> <span class="keyword">nil</span>, fmt.<span class="func">Errorf</span>(<span class="string">"failed to open device: %w"</span>, err)
+    }
+
+    <span class="comment">// Get file size - for block devices, Seek to end</span>
+    size, err := file.<span class="func">Seek</span>(<span class="number">0</span>, io.<span class="type">SeekEnd</span>)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> {
+        <span class="keyword">return</span> <span class="keyword">nil</span>, fmt.<span class="func">Errorf</span>(<span class="string">"failed to determine size: %w"</span>, err)
+    }
+
+    <span class="comment">// Reset position to start</span>
+    _, err = file.<span class="func">Seek</span>(<span class="number">0</span>, io.<span class="type">SeekStart</span>)
+
+    <span class="keyword">return</span> &amp;<span class="type">DiskReader</span>{
+        file:      file,
+        size:      size,
+        blockSize: blockSize,
+    }, <span class="keyword">nil</span>
+}</pre>
+
+                <p><strong>Why use <code>Seek</code> for size?</strong> Block devices (like <code>/dev/sda</code>) don't support the typical <code>Stat()</code> call for getting size. Instead, we seek to the end of the device — the offset returned by <code>Seek(0, io.SeekEnd)</code> gives us the total byte count. This works universally for both regular files and block devices.</p>
+            </div>
+
+            <div class="card">
+                <h3>ReadAt — Thread-Safe Random Access</h3>
+                <p>The <code>ReadAt</code> method allows any goroutine to read from any offset safely:</p>
+
+                <pre><span class="keyword">func</span> (dr *<span class="type">DiskReader</span>) <span class="func">ReadAt</span>(buf []<span class="type">byte</span>, offset <span class="type">int64</span>) (<span class="type">int</span>, <span class="type">error</span>) {
+    dr.mu.<span class="func">Lock</span>()
+    <span class="keyword">defer</span> dr.mu.<span class="func">Unlock</span>()
+
+    _, err := dr.file.<span class="func">Seek</span>(offset, io.<span class="type">SeekStart</span>)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> {
+        <span class="keyword">return</span> <span class="number">0</span>, err
+    }
+    <span class="keyword">return</span> dr.file.<span class="func">Read</span>(buf)
+}</pre>
+
+                <p>The mutex ensures that the <code>Seek</code> + <code>Read</code> pair executes atomically. Without this lock, two goroutines could interleave their seeks and reads, causing each to read from the wrong offset. This pattern is essential because Go's <code>os.File</code> maintains a single internal cursor position.</p>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 Why not use <code>os.File.ReadAt</code>?</div>
+                    <p>Go's standard library does provide a <code>ReadAt</code> method on <code>os.File</code> that's inherently thread-safe. This custom implementation gives us more control over error handling and allows adding instrumentation (like read counters or progress callbacks) in a single place.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>ScanBlocks — Iterating Over the Disk</h3>
+                <p>The workhorse method that drives the carving process:</p>
+
+                <pre><span class="keyword">func</span> (dr *<span class="type">DiskReader</span>) <span class="func">ScanBlocks</span>(callback <span class="keyword">func</span>(offset <span class="type">int64</span>, data []<span class="type">byte</span>) <span class="type">error</span>) <span class="type">error</span> {
+    buf := <span class="func">make</span>([]<span class="type">byte</span>, dr.blockSize)
+
+    <span class="keyword">for</span> offset := <span class="type">int64</span>(<span class="number">0</span>); offset &lt; dr.size; offset += <span class="type">int64</span>(dr.blockSize) {
+        n, err := dr.<span class="func">ReadAt</span>(buf, offset)
+        <span class="keyword">if</span> err != <span class="keyword">nil</span> &amp;&amp; err != io.<span class="type">EOF</span> {
+            <span class="keyword">return</span> err
+        }
+        <span class="keyword">if</span> n == <span class="number">0</span> {
+            <span class="keyword">break</span>
+        }
+
+        <span class="keyword">if</span> err := <span class="func">callback</span>(offset, buf[:n]); err != <span class="keyword">nil</span> {
+            <span class="keyword">return</span> err
+        }
+    }
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+}</pre>
+
+                <p><strong>How it works step by step:</strong></p>
+                <ol style="margin: 1rem 0 1rem 1.5rem;">
+                    <li style="margin-bottom: 0.5rem;">Allocates a reusable buffer of <code>blockSize</code> bytes (avoids repeated allocation)</li>
+                    <li style="margin-bottom: 0.5rem;">Iterates from offset 0 to the end of the disk, advancing by <code>blockSize</code> each iteration</li>
+                    <li style="margin-bottom: 0.5rem;">Reads each block into the buffer using <code>ReadAt</code></li>
+                    <li style="margin-bottom: 0.5rem;">Passes the offset and data to the callback function (provided by the carver)</li>
+                    <li style="margin-bottom: 0.5rem;">The callback can return an error to stop scanning early</li>
+                </ol>
+
+                <p>The callback pattern lets the scanner remain ignorant of what the caller is looking for. The carver passes a callback that checks each block for magic bytes. The NTFS parser passes a different callback that looks for MFT signatures.</p>
+            </div>
+        </section>
+
+        <!-- Section 4: File Signatures Explained -->
+        <section id="signatures">
+            <h2>File Signatures Explained</h2>
+
+            <div class="card">
+                <h3>What Are Magic Bytes?</h3>
+                <p>Magic bytes (also called file signatures) are fixed sequences of bytes at the beginning of a file that identify its format. They're called "magic" because early Unix systems used a file called <code>/etc/magic</code> to store these patterns for the <code>file</code> command.</p>
+
+                <p>Here are the signatures recovery-soft looks for:</p>
+
+                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                    <thead>
+                        <tr style="background: var(--bg); text-align: left;">
+                            <th style="padding: 0.7rem; border-bottom: 2px solid #ddd;">File Type</th>
+                            <th style="padding: 0.7rem; border-bottom: 2px solid #ddd;">Header (ASCII)</th>
+                            <th style="padding: 0.7rem; border-bottom: 2px solid #ddd;">Header (Hex)</th>
+                            <th style="padding: 0.7rem; border-bottom: 2px solid #ddd;">Footer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><strong>PDF</strong></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>%PDF</code></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>25 50 44 46</code></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>%%EOF</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><strong>ZIP</strong></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>PK♥♦</code></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>50 4B 03 04</code></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><code>50 4B 05 06</code> (EOCD)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><strong>DOCX</strong></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;" colspan="3">ZIP with <code>word/document.xml</code> inside</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;"><strong>XLSX</strong></td>
+                            <td style="padding: 0.7rem; border-bottom: 1px solid #eee;" colspan="3">ZIP with <code>xl/workbook.xml</code> inside</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.7rem;"><strong>PPTX</strong></td>
+                            <td style="padding: 0.7rem;" colspan="3">ZIP with <code>ppt/presentation.xml</code> inside</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">⚠️ Note on Office Files</div>
+                    <p>DOCX, XLSX, and PPTX are all ZIP archives internally. They share the same <code>PK\x03\x04</code> header. To distinguish them, recovery-soft must peek inside the ZIP structure to check for characteristic internal paths.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>The FileSignature Struct</h3>
+                <p>Each known file type is described by a <code>FileSignature</code> struct:</p>
+
+                <pre><span class="keyword">type</span> <span class="type">FileSignature</span> <span class="keyword">struct</span> {
+    Name      <span class="type">string</span>   <span class="comment">// Human-readable name (e.g., "PDF Document")</span>
+    Extension <span class="type">string</span>   <span class="comment">// File extension (e.g., ".pdf")</span>
+    Header    []<span class="type">byte</span>   <span class="comment">// Magic bytes at start of file</span>
+    Footer    []<span class="type">byte</span>   <span class="comment">// Magic bytes at end of file (nil if none)</span>
+    MaxSize   <span class="type">int64</span>    <span class="comment">// Maximum expected file size (prevents runaway reads)</span>
+}</pre>
+
+                <p>Key design decisions:</p>
+                <ul style="margin: 1rem 0 1rem 1.5rem;">
+                    <li style="margin-bottom: 0.5rem;"><strong><code>Header</code></strong> — Used to detect the start of a file. Must match exactly at a block boundary.</li>
+                    <li style="margin-bottom: 0.5rem;"><strong><code>Footer</code></strong> — Used to find the end of a file. Not all formats have reliable footers (in which case <code>MaxSize</code> is used as a limit).</li>
+                    <li style="margin-bottom: 0.5rem;"><strong><code>MaxSize</code></strong> — A safety limit. Without this, a false-positive header match could cause the carver to read gigabytes of garbage data looking for a footer that doesn't exist.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>MatchHeader — Byte-by-Byte Comparison</h3>
+                <p>The simplest but most critical function — it checks if a data block starts with a known signature:</p>
+
+                <pre><span class="keyword">func</span> (sig *<span class="type">FileSignature</span>) <span class="func">MatchHeader</span>(data []<span class="type">byte</span>) <span class="type">bool</span> {
+    <span class="keyword">if</span> <span class="func">len</span>(data) &lt; <span class="func">len</span>(sig.Header) {
+        <span class="keyword">return</span> <span class="keyword">false</span>
+    }
+    <span class="keyword">for</span> i, b := <span class="keyword">range</span> sig.Header {
+        <span class="keyword">if</span> data[i] != b {
+            <span class="keyword">return</span> <span class="keyword">false</span>
+        }
+    }
+    <span class="keyword">return</span> <span class="keyword">true</span>
+}</pre>
+
+                <p>This performs a simple linear comparison. It first checks that the data buffer is at least as long as the signature (prevents out-of-bounds panics), then compares byte by byte. The function returns <code>false</code> at the first mismatch — an early exit optimization that matters when this function is called millions of times during a full disk scan.</p>
+            </div>
+
+            <div class="card">
+                <h3>FindFooter — Searching Backwards</h3>
+                <p>Once a header is found, the carver needs to find where the file ends. <code>FindFooter</code> searches for the footer pattern within a data region:</p>
+
+                <pre><span class="keyword">func</span> (sig *<span class="type">FileSignature</span>) <span class="func">FindFooter</span>(data []<span class="type">byte</span>) <span class="type">int64</span> {
+    <span class="keyword">if</span> sig.Footer == <span class="keyword">nil</span> {
+        <span class="keyword">return</span> <span class="number">-1</span>  <span class="comment">// No footer defined for this type</span>
+    }
+
+    footerLen := <span class="func">len</span>(sig.Footer)
+
+    <span class="comment">// Search backwards from end — footer is most likely near the end</span>
+    <span class="keyword">for</span> i := <span class="func">len</span>(data) - footerLen; i &gt;= <span class="number">0</span>; i-- {
+        match := <span class="keyword">true</span>
+        <span class="keyword">for</span> j := <span class="number">0</span>; j &lt; footerLen; j++ {
+            <span class="keyword">if</span> data[i+j] != sig.Footer[j] {
+                match = <span class="keyword">false</span>
+                <span class="keyword">break</span>
+            }
+        }
+        <span class="keyword">if</span> match {
+            <span class="keyword">return</span> <span class="type">int64</span>(i + footerLen)  <span class="comment">// Return position AFTER footer</span>
+        }
+    }
+    <span class="keyword">return</span> <span class="number">-1</span>  <span class="comment">// Footer not found</span>
+}</pre>
+
+                <p><strong>Why search backwards?</strong> File footers appear at the end of the file. If we have a buffer containing the entire file, searching from the end finds the footer immediately without scanning through megabytes of content. The function returns the position <em>after</em> the footer, giving us the exact file size.</p>
+
+                <p>If the footer isn't found (returns <code>-1</code>), the carver falls back to using <code>MaxSize</code> as the file boundary — this recovers truncated files that may have had their ending overwritten.</p>
+            </div>
+
+            <div class="card">
+                <h3>The Registry — Known Signatures</h3>
+                <p>All supported file types are registered in a package-level variable:</p>
+
+                <pre><span class="keyword">var</span> Registry = []<span class="type">FileSignature</span>{
+    {
+        Name:      <span class="string">"PDF Document"</span>,
+        Extension: <span class="string">".pdf"</span>,
+        Header:    []<span class="type">byte</span>{<span class="number">0x25</span>, <span class="number">0x50</span>, <span class="number">0x44</span>, <span class="number">0x46</span>},  <span class="comment">// %PDF</span>
+        Footer:    []<span class="type">byte</span>{<span class="number">0x25</span>, <span class="number">0x25</span>, <span class="number">0x45</span>, <span class="number">0x4F</span>, <span class="number">0x46</span>},  <span class="comment">// %%EOF</span>
+        MaxSize:   <span class="number">100</span> * <span class="number">1024</span> * <span class="number">1024</span>,  <span class="comment">// 100 MB</span>
+    },
+    {
+        Name:      <span class="string">"ZIP Archive"</span>,
+        Extension: <span class="string">".zip"</span>,
+        Header:    []<span class="type">byte</span>{<span class="number">0x50</span>, <span class="number">0x4B</span>, <span class="number">0x03</span>, <span class="number">0x04</span>},  <span class="comment">// PK\x03\x04</span>
+        Footer:    []<span class="type">byte</span>{<span class="number">0x50</span>, <span class="number">0x4B</span>, <span class="number">0x05</span>, <span class="number">0x06</span>},  <span class="comment">// End of central directory</span>
+        MaxSize:   <span class="number">500</span> * <span class="number">1024</span> * <span class="number">1024</span>,  <span class="comment">// 500 MB</span>
+    },
+}</pre>
+
+                <p>This design makes it trivial to add new file types — just append a new <code>FileSignature</code> to the slice. No other code changes needed. The carver iterates over this registry for every block it reads, checking each signature's header against the block data.</p>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 Extending the Tool</div>
+                    <p>To add recovery support for a new file format (e.g., JPEG, PNG), you only need to add its magic bytes to this registry. The scanner, carver, and output packages require zero modifications.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: The File Carver -->
+        <section id="carver">
+            <div class="section-card">
+                <h2>5. The File Carver Engine</h2>
+                <p>The carver (<code>pkg/carver/carver.go</code>) is the heart of raw recovery. It scans every block of the disk looking for known file headers, then extracts data until it finds the corresponding footer.</p>
+
+                <h3>How Carving Works Step by Step</h3>
+                <ol>
+                    <li><strong>Open the disk</strong> — creates a <code>DiskReader</code> to access raw bytes</li>
+                    <li><strong>Iterate in blocks</strong> — reads the disk 4KB at a time (matching typical cluster sizes)</li>
+                    <li><strong>Check for headers</strong> — at each position, compares bytes against all known signatures</li>
+                    <li><strong>Extract file data</strong> — when a header is found, reads forward up to <code>MaxSize</code> looking for the footer</li>
+                    <li><strong>Classify ZIP files</strong> — checks if a ZIP is actually a DOCX/XLSX/PPTX by examining internal paths</li>
+                    <li><strong>Write to output</strong> — saves the recovered file with a sequential name</li>
+                </ol>
+
+                <h3>Key Code: The Scan Loop</h3>
+<pre><code><span class="keyword">func</span> (c *Carver) <span class="function">Scan</span>(progressFn <span class="keyword">func</span>(offset, total <span class="type">int64</span>)) <span class="type">error</span> {
+    <span class="comment">// Use a sliding window to detect headers that span block boundaries</span>
+    overlapSize := <span class="number">64</span>
+    prevTail := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">0</span>, overlapSize)
+
+    err := c.reader.<span class="function">ScanBlocks</span>(c.blockSize, <span class="keyword">func</span>(offset <span class="type">int64</span>, data []<span class="type">byte</span>) <span class="type">bool</span> {
+        <span class="comment">// Combine previous block's tail with current block's head</span>
+        <span class="comment">// This catches signatures that span a block boundary</span>
+        <span class="keyword">var</span> searchBuf []<span class="type">byte</span>
+        <span class="keyword">if</span> <span class="function">len</span>(prevTail) > <span class="number">0</span> {
+            searchBuf = <span class="function">append</span>(prevTail, data...)
+        } <span class="keyword">else</span> {
+            searchBuf = data
+        }
+
+        <span class="comment">// Try every byte position against every known signature</span>
+        <span class="keyword">for</span> i := <span class="keyword">range</span> searchBuf {
+            <span class="keyword">for</span> sigIdx := <span class="keyword">range</span> signatures {
+                <span class="keyword">if</span> sig.<span class="function">MatchHeader</span>(searchBuf[i:]) {
+                    c.<span class="function">extractFile</span>(sig, actualOffset)
+                }
+            }
+        }
+        <span class="keyword">return</span> <span class="keyword">true</span> <span class="comment">// continue scanning</span>
+    })
+}</code></pre>
+
+                <h3>Why the Overlap?</h3>
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 Block Boundary Problem</div>
+                    <p>Imagine a PDF file starts at byte 4094 and your block size is 4096. The <code>%PDF</code> header (4 bytes) would be split: 2 bytes at the end of block 1 and 2 bytes at the start of block 2. Without the overlap buffer, you'd miss it entirely. The 64-byte overlap ensures no header is lost.</p>
+                </div>
+
+                <h3>File Extraction</h3>
+<pre><code><span class="keyword">func</span> (c *Carver) <span class="function">extractFile</span>(sig *signature.FileSignature, offset <span class="type">int64</span>) {
+    <span class="comment">// Read data in 1MB chunks, looking for the footer</span>
+    <span class="keyword">for</span> readOffset := <span class="type">int64</span>(<span class="number">0</span>); readOffset < readSize; readOffset += chunkSize {
+        chunk := <span class="keyword">make</span>([]<span class="type">byte</span>, size)
+        n, _ := c.reader.<span class="function">ReadAt</span>(chunk, offset+readOffset)
+        fileData = <span class="function">append</span>(fileData, chunk[:n]...)
+
+        <span class="comment">// Check if footer exists in what we've read so far</span>
+        footerEnd := sig.<span class="function">FindFooter</span>(fileData)
+        <span class="keyword">if</span> footerEnd > <span class="number">0</span> {
+            fileData = fileData[:footerEnd] <span class="comment">// Trim to exact file end</span>
+            <span class="keyword">break</span>
+        }
+    }
+
+    <span class="comment">// Classify ZIP-based files (DOCX, XLSX, PPTX)</span>
+    <span class="keyword">if</span> sig.Extension == <span class="string">".zip"</span> {
+        actualSig = c.<span class="function">classifyZip</span>(fileData, sig)
+    }
+
+    os.<span class="function">WriteFile</span>(outPath, fileData, <span class="number">0o644</span>)
+}</code></pre>
+
+                <h3>ZIP Classification Logic</h3>
+                <p>All Microsoft Office Open XML files (DOCX, XLSX, PPTX) are actually ZIP archives. The carver looks inside the first 4KB for these telltale paths:</p>
+                <table>
+                    <thead><tr><th>Marker Found</th><th>Classification</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>word/</code></td><td>DOCX (Word document)</td></tr>
+                        <tr><td><code>xl/</code></td><td>XLSX (Excel spreadsheet)</td></tr>
+                        <tr><td><code>ppt/</code></td><td>PPTX (PowerPoint presentation)</td></tr>
+                        <tr><td>None of the above</td><td>Plain ZIP archive</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Section 6: NTFS Recovery -->
+        <section id="ntfs">
+            <div class="section-card">
+                <h2>6. NTFS Filesystem Recovery</h2>
+                <p>The NTFS module (<code>pkg/ntfs/ntfs.go</code>) provides intelligent recovery by parsing the Master File Table — NTFS's equivalent of a file index. This allows recovery with <strong>original filenames</strong>.</p>
+
+                <h3>How NTFS Stores Files</h3>
+                <p>NTFS uses a structure called the <strong>MFT (Master File Table)</strong>. Think of it as a database where each row (called an MFT entry) describes one file:</p>
+                <ul>
+                    <li><strong>Filename</strong> — stored in a $FILE_NAME attribute</li>
+                    <li><strong>Data location</strong> — stored as "data runs" (a list of cluster ranges)</li>
+                    <li><strong>Timestamps</strong> — creation, modification, access, MFT change</li>
+                    <li><strong>Flags</strong> — whether the entry is in-use or deleted</li>
+                </ul>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">⚠️ Why NTFS Recovery Works After Reformatting</div>
+                    <p>When Ubuntu reformats a drive, it writes a new ext4 superblock and inode tables — but these only occupy the first few megabytes. The old NTFS MFT (often located deeper on disk) may survive intact. This is why NTFS mode can recover files with their original names even after a format.</p>
+                </div>
+
+                <h3>Step 1: Parse Boot Sector</h3>
+<pre><code><span class="keyword">func</span> (p *NTFSParser) <span class="function">ParseBootSector</span>() <span class="type">error</span> {
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">512</span>)
+    p.reader.<span class="function">ReadAt</span>(buf, p.partition)
+
+    <span class="comment">// Bytes 3-6 must be "NTFS" for valid NTFS</span>
+    <span class="keyword">if</span> <span class="function">string</span>(buf[<span class="number">3</span>:<span class="number">7</span>]) != <span class="string">"NTFS"</span> {
+        <span class="keyword">return</span> fmt.<span class="function">Errorf</span>(<span class="string">"not an NTFS filesystem"</span>)
+    }
+
+    <span class="comment">// Extract key geometry values:</span>
+    <span class="comment">// - Bytes per sector (usually 512)</span>
+    <span class="comment">// - Sectors per cluster (usually 8, giving 4096-byte clusters)</span>
+    <span class="comment">// - MFT start cluster number</span>
+    p.boot.BytesPerSector = binary.LittleEndian.<span class="function">Uint16</span>(buf[<span class="number">0x0B</span>:<span class="number">0x0D</span>])
+    p.boot.SectorsPerCluster = buf[<span class="number">0x0D</span>]
+    p.boot.MFTCluster = <span class="type">int64</span>(binary.LittleEndian.<span class="function">Uint64</span>(buf[<span class="number">0x30</span>:<span class="number">0x38</span>]))
+}</code></pre>
+                <p>The boot sector is always at the very start of the partition. It tells us how big clusters are and where the MFT begins.</p>
+
+                <h3>Step 2: Read MFT Entries</h3>
+                <p>Each MFT entry is exactly 1024 bytes and starts with the magic string <code>FILE</code>:</p>
+<pre><code><span class="keyword">func</span> (p *NTFSParser) <span class="function">ReadMFTEntry</span>(offset <span class="type">int64</span>) (*MFTEntry, <span class="type">error</span>) {
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">1024</span>) <span class="comment">// Every MFT entry is 1KB</span>
+    p.reader.<span class="function">ReadAt</span>(buf, offset)
+
+    <span class="comment">// Validate signature</span>
+    <span class="keyword">if</span> <span class="function">string</span>(buf[<span class="number">0</span>:<span class="number">4</span>]) != <span class="string">"FILE"</span> { <span class="keyword">return</span> <span class="keyword">nil</span>, err }
+
+    <span class="comment">// Flags at offset 0x16 tell us:</span>
+    <span class="comment">// Bit 0: in-use (1) or deleted (0)</span>
+    <span class="comment">// Bit 1: directory (1) or file (0)</span>
+    flags := binary.LittleEndian.<span class="function">Uint16</span>(buf[<span class="number">0x16</span>:<span class="number">0x18</span>])
+    entry.InUse = flags&<span class="number">0x01</span> != <span class="number">0</span>
+    entry.IsDirectory = flags&<span class="number">0x02</span> != <span class="number">0</span>
+
+    <span class="comment">// Walk through attributes to find filename and data location</span>
+    <span class="comment">// Attributes are chained: each has a type and length</span>
+}</code></pre>
+
+                <h3>Step 3: Decode Data Runs</h3>
+                <p>Data runs are a compressed encoding of where file data lives on disk. They use variable-length encoding:</p>
+<pre><code><span class="comment">// A data run header byte: low nibble = length size, high nibble = offset size</span>
+<span class="comment">// Example: 0x31 means 1 byte for length, 3 bytes for offset</span>
+<span class="comment">//</span>
+<span class="comment">// Runs are relative: each offset is added to the previous one</span>
+<span class="comment">// This efficiently encodes fragmented files</span>
+<span class="keyword">func</span> <span class="function">decodeDataRuns</span>(data []<span class="type">byte</span>) []DataRun {
+    <span class="keyword">var</span> prevOffset <span class="type">int64</span>
+    <span class="keyword">for</span> {
+        header := data[pos]
+        <span class="keyword">if</span> header == <span class="number">0</span> { <span class="keyword">break</span> } <span class="comment">// End of run list</span>
+
+        lengthSize := header & <span class="number">0x0F</span>  <span class="comment">// How many bytes encode the run length</span>
+        offsetSize := header >> <span class="number">4</span>    <span class="comment">// How many bytes encode the offset</span>
+
+        <span class="comment">// Read length (unsigned) and offset (signed, relative)</span>
+        prevOffset += runOffset <span class="comment">// Offsets accumulate</span>
+        runs = <span class="function">append</span>(runs, DataRun{ClusterOffset: prevOffset, ClusterCount: runLength})
+    }
+}</code></pre>
+
+                <h3>Step 4: Recover File Content</h3>
+<pre><code><span class="keyword">func</span> (p *NTFSParser) <span class="function">RecoverFileData</span>(entry *MFTEntry) ([]<span class="type">byte</span>, <span class="type">error</span>) {
+    <span class="keyword">for</span> _, run := <span class="keyword">range</span> entry.DataRuns {
+        <span class="comment">// Convert cluster number to byte offset on disk</span>
+        clusterOffset := p.partition + run.ClusterOffset * p.boot.ClusterSize
+        runSize := run.ClusterCount * p.boot.ClusterSize
+
+        <span class="comment">// Read all clusters in this run</span>
+        buf := <span class="keyword">make</span>([]<span class="type">byte</span>, runSize)
+        p.reader.<span class="function">ReadAt</span>(buf, clusterOffset)
+        data = <span class="function">append</span>(data, buf...)
+    }
+    <span class="comment">// Trim to the file's actual size (last cluster may be partial)</span>
+    <span class="keyword">return</span> data[:entry.FileSize], <span class="keyword">nil</span>
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 7: ext4 Recovery -->
+        <section id="ext4">
+            <div class="section-card">
+                <h2>7. ext4 Filesystem Recovery</h2>
+                <p>The ext4 module (<code>pkg/ext4/ext4.go</code>) understands Linux's most common filesystem. It finds deleted files by scanning inode tables for entries with a non-zero deletion timestamp.</p>
+
+                <h3>How ext4 Organizes Data</h3>
+                <p>ext4 divides the disk into <strong>block groups</strong>. Each group contains:</p>
+                <ul>
+                    <li><strong>Superblock</strong> — filesystem metadata (block size, inode count, etc.)</li>
+                    <li><strong>Group Descriptors</strong> — tell you where each group's data structures are</li>
+                    <li><strong>Inode Bitmap</strong> — marks which inodes are allocated</li>
+                    <li><strong>Inode Table</strong> — the actual inode entries (like MFT entries in NTFS)</li>
+                    <li><strong>Data Blocks</strong> — where actual file content lives</li>
+                </ul>
+
+                <h3>Step 1: Parse the Superblock</h3>
+<pre><code><span class="keyword">func</span> (p *Ext4Parser) <span class="function">ParseSuperblock</span>() <span class="type">error</span> {
+    <span class="comment">// Superblock is always at offset 1024 from partition start</span>
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">1024</span>)
+    p.reader.<span class="function">ReadAt</span>(buf, p.partition + <span class="number">1024</span>)
+
+    <span class="comment">// Magic number at offset 0x38 must be 0xEF53</span>
+    magic := binary.LittleEndian.<span class="function">Uint16</span>(buf[<span class="number">0x38</span>:<span class="number">0x3A</span>])
+    <span class="keyword">if</span> magic != <span class="number">0xEF53</span> {
+        <span class="keyword">return</span> fmt.<span class="function">Errorf</span>(<span class="string">"not ext4"</span>)
+    }
+
+    <span class="comment">// Block size is encoded as: 1024 << logBlockSize</span>
+    <span class="comment">// logBlockSize=0 → 1KB, logBlockSize=1 → 2KB, logBlockSize=2 → 4KB</span>
+    logBlockSize := binary.LittleEndian.<span class="function">Uint32</span>(buf[<span class="number">0x18</span>:<span class="number">0x1C</span>])
+    p.sb.BlockSize = <span class="number">1024</span> << logBlockSize
+}</code></pre>
+
+                <h3>Step 2: Locate Inode Tables via Group Descriptors</h3>
+<pre><code><span class="keyword">func</span> (p *Ext4Parser) <span class="function">ReadGroupDescriptor</span>(groupNum <span class="type">int</span>) (*GroupDescriptor, <span class="type">error</span>) {
+    <span class="comment">// Group descriptor table starts at block 1 (right after superblock)</span>
+    gdtBlock := <span class="type">int64</span>(p.sb.FirstDataBlock) + <span class="number">1</span>
+    gdtOffset := p.partition + gdtBlock * <span class="type">int64</span>(p.sb.BlockSize)
+
+    <span class="comment">// Each descriptor tells us the inode table location for its group</span>
+    offset := gdtOffset + <span class="type">int64</span>(groupNum) * descSize
+    <span class="comment">// gd.InodeTableLo = block number where this group's inodes start</span>
+}</code></pre>
+
+                <h3>Step 3: Find Deleted Inodes</h3>
+<pre><code><span class="keyword">func</span> (p *Ext4Parser) <span class="function">ScanDeletedInodes</span>(maxGroups <span class="type">int</span>, callback <span class="keyword">func</span>(*Inode)) <span class="type">error</span> {
+    <span class="keyword">for</span> g := <span class="number">0</span>; g < numGroups; g++ {
+        <span class="keyword">for</span> i := <span class="type">uint32</span>(<span class="number">0</span>); i < p.sb.InodesPerGroup; i++ {
+            inode := p.<span class="function">ReadInode</span>(inodeNum)
+
+            <span class="comment">// A deleted file has:</span>
+            <span class="comment">// - DeletionTime != 0 (was explicitly deleted)</span>
+            <span class="comment">// - LinkCount == 0 (no directory references it)</span>
+            <span class="comment">// - Size > 0 (had actual content)</span>
+            <span class="keyword">if</span> inode.<span class="function">IsDeleted</span>() && inode.<span class="function">IsRegularFile</span>() {
+                callback(inode)
+            }
+        }
+    }
+}</code></pre>
+
+                <h3>Step 4: Read Data via Extents</h3>
+                <p>Modern ext4 uses <strong>extents</strong> — contiguous ranges of blocks — instead of indirect block pointers:</p>
+<pre><code><span class="comment">// An extent header has magic 0xF30A</span>
+<span class="comment">// Followed by extent entries:</span>
+<span class="keyword">type</span> Extent <span class="keyword">struct</span> {
+    Block   <span class="type">uint32</span> <span class="comment">// Logical block number (position in file)</span>
+    Length  <span class="type">uint16</span> <span class="comment">// How many contiguous blocks</span>
+    StartHi <span class="type">uint16</span> <span class="comment">// Physical block high bits</span>
+    StartLo <span class="type">uint32</span> <span class="comment">// Physical block low bits</span>
+}
+
+<span class="keyword">func</span> (p *Ext4Parser) <span class="function">RecoverInodeData</span>(inode *Inode) ([]<span class="type">byte</span>, <span class="type">error</span>) {
+    <span class="keyword">for</span> _, ext := <span class="keyword">range</span> inode.Extents {
+        physBlock := ext.<span class="function">PhysicalBlock</span>()
+        offset := p.partition + physBlock * <span class="type">int64</span>(p.sb.BlockSize)
+        size := <span class="type">int64</span>(ext.Length) * <span class="type">int64</span>(p.sb.BlockSize)
+        <span class="comment">// Read these blocks and append to output</span>
+    }
+    <span class="keyword">return</span> data[:inode.Size], <span class="keyword">nil</span> <span class="comment">// Trim to actual file size</span>
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 8: Usage Guide -->
+        <section id="usage">
+            <div class="section-card">
+                <h2>8. Usage Guide</h2>
+
+                <h3>Building the Tool</h3>
+<pre><code><span class="comment"># Clone and build</span>
+cd recovery-soft
+go build -o recover ./cmd/recover/
+
+<span class="comment"># Verify it works</span>
+./recover version
+<span class="comment"># Output: recovery-soft v0.1.0</span></code></pre>
+
+                <h3>Recovery Commands</h3>
+
+                <h4>Auto-Detect (Recommended First Try)</h4>
+<pre><code><span class="comment"># Tries NTFS → ext4 → raw carving automatically</span>
+sudo ./recover auto /dev/sda2 /mnt/external/recovered</code></pre>
+
+                <h4>Raw File Carving</h4>
+<pre><code><span class="comment"># Works on ANY disk regardless of filesystem</span>
+<span class="comment"># Best when filesystem is completely destroyed</span>
+sudo ./recover carve /dev/sda /mnt/external/recovered
+
+<span class="comment"># With verbose output to see each file found</span>
+sudo ./recover carve -v /dev/sda /mnt/external/recovered
+
+<span class="comment"># Custom block size (use 512 for more thorough but slower scan)</span>
+sudo ./recover carve -block-size 512 /dev/sda /mnt/external/recovered</code></pre>
+
+                <h4>NTFS Recovery (Best for Windows→Linux Scenario)</h4>
+<pre><code><span class="comment"># Recovers with original filenames!</span>
+sudo ./recover ntfs /dev/sda2 /mnt/external/recovered
+
+<span class="comment"># If NTFS partition started at an offset</span>
+sudo ./recover ntfs -offset 1048576 /dev/sda /mnt/external/recovered
+
+<span class="comment"># Scan more MFT entries (for large drives)</span>
+sudo ./recover ntfs -max-entries 200000 /dev/sda2 /mnt/external/recovered</code></pre>
+
+                <h4>ext4 Recovery</h4>
+<pre><code><span class="comment"># For recently deleted files on an ext4 partition</span>
+sudo ./recover ext4 /dev/sda2 /mnt/external/recovered
+
+<span class="comment"># Scan more block groups (for large partitions)</span>
+sudo ./recover ext4 -max-groups 500 /dev/sda2 /mnt/external/recovered</code></pre>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">⚠️ Critical Rules</div>
+                    <ul>
+                        <li><strong>Always use sudo</strong> — raw disk access requires root privileges</li>
+                        <li><strong>Never write to the source disk</strong> — output must go to a different physical drive</li>
+                        <li><strong>Act fast</strong> — every write to the disk may overwrite recoverable data</li>
+                        <li><strong>Boot from USB</strong> — if recovering from your main drive, boot a live Linux USB first</li>
+                    </ul>
+                </div>
+
+                <h3>Understanding the Output</h3>
+<pre><code>./recovered/
+├── recovered_0001_PDF.pdf        <span class="comment"># From carve mode</span>
+├── recovered_0002_ZIP.zip
+├── recovered_0003_DOCX.docx
+├── ntfs_0001_report.pdf          <span class="comment"># From ntfs mode (original name!)</span>
+├── ntfs_0002_backup.zip
+├── ext4_0001_inode54321.pdf      <span class="comment"># From ext4 mode</span>
+└── recovery_report.json          <span class="comment"># Machine-readable summary</span></code></pre>
+
+                <h3>The Recovery Report</h3>
+                <p>After every run, a JSON report is generated:</p>
+<pre><code>{
+  <span class="string">"timestamp"</span>: <span class="string">"2026-07-06T12:00:00Z"</span>,
+  <span class="string">"source"</span>: <span class="string">"/dev/sda2"</span>,
+  <span class="string">"total_bytes_scanned"</span>: <span class="number">500107862016</span>,
+  <span class="string">"files_found"</span>: <span class="number">23</span>,
+  <span class="string">"files_by_type"</span>: {
+    <span class="string">"PDF"</span>: <span class="number">15</span>,
+    <span class="string">"ZIP"</span>: <span class="number">5</span>,
+    <span class="string">"DOCX"</span>: <span class="number">3</span>
+  },
+  <span class="string">"entries"</span>: [...]
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 8b: Interactive Mode -->
+        <section id="interactive-mode">
+            <div class="section-card">
+                <h2>8b. Interactive Mode (TUI)</h2>
+                <p>The interactive mode provides a <strong>keyboard-navigable interface</strong> that guides you through the entire recovery process without needing to remember any command-line options.</p>
+
+<pre><code>sudo ./recover interactive
+<span class="comment"># Or the shorthand:</span>
+sudo ./recover i</code></pre>
+
+                <h3>How It Works</h3>
+                <p>The wizard walks you through 4 steps using arrow-key navigation:</p>
+
+                <h4>Step 1: Source Disk Selection</h4>
+                <p>All detected disks and partitions are listed. Use ↑/↓ to highlight your choice:</p>
+<pre><code>  Select source disk:
+
+  ❯ /dev/sda         500.00 GB  (ntfs) Samsung SSD 970
+    /dev/sda1        100.00 MB  (ntfs) [EFI]
+    /dev/sda2        499.90 GB  (ext4) [mounted: /]
+    /dev/sdb         1.00 TB           WD External</code></pre>
+                <p>The tool automatically detects filesystem type, size, model name, and mount status for each device.</p>
+
+                <h4>Step 2: Output Destination</h4>
+                <p>Mounted external drives are suggested automatically. You can also type a custom path:</p>
+<pre><code>  Select output destination:
+
+  ❯ /mnt/external/recovered    (932G free on /dev/sdb1)
+    ./recovered                 (current directory)
+    Custom path...              (type your own path)</code></pre>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">⚠️ Same-Disk Detection</div>
+                    <p>The tool automatically detects if your output path is on the same physical device as the source and warns you. Writing recovered files to the source disk can destroy the data you're trying to recover.</p>
+                </div>
+
+                <h4>Step 3: Recovery Method</h4>
+<pre><code>  Select recovery method:
+
+  ❯ Auto-detect     tries all methods automatically (recommended)
+    NTFS recovery   best for formatted Windows drives — recovers filenames
+    ext4 recovery   for recently deleted files on Linux
+    Raw carving     works on anything — no filenames recovered</code></pre>
+
+                <h4>Step 4: Confirmation</h4>
+                <p>A summary is shown before recovery begins. Use ←/→ to select Yes or No:</p>
+<pre><code>  ┌──────────────────────────────────────────────────────────┐
+  │                    RECOVERY SUMMARY                       │
+  ├──────────────────────────────────────────────────────────┤
+  │  Source:   /dev/sda2                                      │
+  │  Output:   /mnt/external/recovered                        │
+  │  Method:   Auto-detect                                    │
+  │  Verbose:  true                                           │
+  └──────────────────────────────────────────────────────────┘
+
+  Start recovery?
+
+  ❯ Yes    No</code></pre>
+
+                <h3>Keyboard Controls</h3>
+                <table>
+                    <thead><tr><th>Key</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>↑</code> / <code>k</code></td><td>Move selection up</td></tr>
+                        <tr><td><code>↓</code> / <code>j</code></td><td>Move selection down</td></tr>
+                        <tr><td><code>←</code> / <code>→</code></td><td>Switch between Yes/No</td></tr>
+                        <tr><td><code>Enter</code></td><td>Confirm selection</td></tr>
+                        <tr><td><code>Ctrl+C</code> / <code>q</code></td><td>Cancel and exit</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>How the TUI Works (pkg/tui/)</h3>
+                <p>The interactive menu is built from scratch using only ANSI escape codes and Go's <code>golang.org/x/term</code> package for raw terminal access:</p>
+
+<pre><code><span class="comment">// 1. Put terminal in raw mode (keypresses sent immediately, no echo)</span>
+oldState, _ := term.<span class="function">MakeRaw</span>(<span class="function">int</span>(os.Stdin.<span class="function">Fd</span>()))
+<span class="keyword">defer</span> term.<span class="function">Restore</span>(<span class="function">int</span>(os.Stdin.<span class="function">Fd</span>()), oldState)
+
+<span class="comment">// 2. Hide cursor during menu display</span>
+fmt.<span class="function">Print</span>(<span class="string">"\033[?25l"</span>) <span class="comment">// ANSI: hide cursor</span>
+
+<span class="comment">// 3. Read raw key input (3 bytes for arrow keys)</span>
+buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">3</span>)
+os.Stdin.<span class="function">Read</span>(buf)
+
+<span class="comment">// Arrow keys send 3 bytes: ESC [ A/B/C/D</span>
+<span class="comment">// ESC = 27, [ = 91, A=Up B=Down C=Right D=Left</span>
+<span class="keyword">if</span> buf[<span class="number">0</span>] == <span class="number">27</span> && buf[<span class="number">1</span>] == <span class="number">91</span> && buf[<span class="number">2</span>] == <span class="number">65</span> {
+    <span class="comment">// Up arrow pressed — move selection up</span>
+    selected--
+}
+
+<span class="comment">// 4. Redraw menu by moving cursor up and clearing lines</span>
+fmt.<span class="function">Printf</span>(<span class="string">"\033[%dA"</span>, numItems) <span class="comment">// Move cursor up N lines</span>
+fmt.<span class="function">Print</span>(<span class="string">"\033[2K"</span>)              <span class="comment">// Clear current line</span>
+
+<span class="comment">// 5. Render highlighted item with color</span>
+fmt.<span class="function">Printf</span>(<span class="string">"\033[36m❯ %s\033[0m"</span>, item.Label) <span class="comment">// Cyan highlight</span></code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 No External TUI Framework</div>
+                    <p>The interactive mode uses no external TUI libraries (no bubbletea, no tview, no termui). It's built entirely on ANSI escape sequences and <code>golang.org/x/term</code> for raw mode. This keeps the binary small and dependency-free. The only dependency beyond the Go standard library is <code>golang.org/x/term</code> which is maintained by the Go team.</p>
+                </div>
+
+                <h3>Key Components</h3>
+                <table>
+                    <thead><tr><th>Function</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>tui.SelectOption()</code></td><td>Arrow-key navigable multi-item menu. Returns selected index.</td></tr>
+                        <tr><td><code>tui.Confirm()</code></td><td>Yes/No prompt with ←/→ navigation.</td></tr>
+                        <tr><td><code>tui.TextInput()</code></td><td>Free-text input with backspace handling and default values.</td></tr>
+                        <tr><td><code>tui.Header()</code></td><td>Styled section header with separator line.</td></tr>
+                        <tr><td><code>tui.Warning()</code></td><td>Yellow warning message.</td></tr>
+                        <tr><td><code>tui.Success()</code></td><td>Green success confirmation.</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Safety Features</h3>
+                <ul>
+                    <li><strong>Root check</strong> — warns if not running with sudo</li>
+                    <li><strong>Mount detection</strong> — warns if source disk is currently mounted</li>
+                    <li><strong>Same-device detection</strong> — warns if output would write to the source disk</li>
+                    <li><strong>Disabled items</strong> — menu items can be greyed out (e.g., unsafe options)</li>
+                    <li><strong>Terminal restoration</strong> — always restores terminal state on exit or Ctrl+C</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 9: Testing -->
+        <section id="testing">
+            <div class="section-card">
+                <h2>9. Testing the Tool</h2>
+                <p>Never test on your real disk! The included test script creates a safe, simulated environment:</p>
+
+<pre><code><span class="comment"># Run the full integration test</span>
+sudo ./test_recovery.sh</code></pre>
+
+                <h3>What the Test Does</h3>
+                <ol>
+                    <li>Creates a 50MB file filled with zeros (<code>dd if=/dev/zero</code>)</li>
+                    <li>Formats it as NTFS (<code>mkfs.ntfs</code>)</li>
+                    <li>Mounts it and copies test PDF/ZIP files into it</li>
+                    <li>Unmounts and reformats as ext4 (simulating Ubuntu installation)</li>
+                    <li>Runs the recovery tool against the reformatted image</li>
+                    <li>Verifies that original files were recovered</li>
+                </ol>
+
+                <h3>Manual Testing with Disk Images</h3>
+<pre><code><span class="comment"># Create a test image</span>
+dd if=/dev/zero of=test.img bs=1M count=100
+
+<span class="comment"># Put some files in it</span>
+mkfs.ntfs -F -Q test.img
+sudo mount -o loop test.img /mnt/test
+sudo cp ~/Documents/*.pdf /mnt/test/
+sudo umount /mnt/test
+
+<span class="comment"># "Destroy" it</span>
+mkfs.ext4 -F test.img
+
+<span class="comment"># Recover!</span>
+./recover auto test.img ./output
+ls ./output/</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 10: Troubleshooting -->
+        <section id="troubleshooting">
+            <div class="section-card">
+                <h2>10. Troubleshooting</h2>
+
+                <h3>Common Issues</h3>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ "Permission denied" when accessing disk</div>
+                    <p><strong>Cause:</strong> Raw disk access requires root privileges.</p>
+                    <p><strong>Fix:</strong></p>
+<pre><code><span class="comment"># Always run with sudo</span>
+sudo ./recover carve /dev/sda ./output
+
+<span class="comment"># Or check permissions</span>
+ls -la /dev/sda
+<span class="comment"># Should show: brw-rw---- 1 root disk ...</span></code></pre>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ "not an NTFS filesystem"</div>
+                    <p><strong>Cause:</strong> The NTFS boot sector was overwritten, or you're pointing at the wrong partition/offset.</p>
+                    <p><strong>Fixes:</strong></p>
+                    <ul>
+                        <li>Try a different partition: <code>/dev/sda1</code>, <code>/dev/sda2</code>, etc.</li>
+                        <li>Use <code>fdisk -l</code> to list partitions and their types</li>
+                        <li>If the partition table was rewritten, try specifying the old offset manually with <code>-offset</code></li>
+                        <li>Fall back to <code>recover carve</code> — it doesn't need filesystem structures</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ "not an ext4 filesystem"</div>
+                    <p><strong>Cause:</strong> Similar to above — the ext4 superblock isn't where expected.</p>
+                    <p><strong>Fixes:</strong></p>
+                    <ul>
+                        <li>ext4 superblock is at offset 1024 from partition start — verify your offset is correct</li>
+                        <li>ext4 stores backup superblocks: try <code>-offset</code> with values from <code>dumpe2fs</code></li>
+                        <li>Fall back to <code>recover carve</code></li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ Files recovered but corrupted (can't open)</div>
+                    <p><strong>Causes and fixes:</strong></p>
+                    <ul>
+                        <li><strong>Partial overwrite:</strong> Some file blocks were reused by the new filesystem. The file is partially destroyed — nothing can recover overwritten bytes.</li>
+                        <li><strong>Wrong footer detected:</strong> For PDF files, <code>%%EOF</code> can appear mid-file in some cases. The tool uses the <em>last</em> occurrence to minimize this.</li>
+                        <li><strong>Fragmented file:</strong> In carve mode, fragmented files can't be reassembled (no filesystem metadata). Try <code>ntfs</code> mode instead — it uses data runs to handle fragmentation.</li>
+                        <li><strong>SSD TRIM:</strong> If the drive is an SSD with TRIM, the hardware may have zeroed the blocks. These zeros produce "valid-looking" headers but empty content.</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ Recovery finds 0 files</div>
+                    <p><strong>Possible causes:</strong></p>
+                    <ul>
+                        <li><strong>Wrong device:</strong> Double-check with <code>lsblk</code> or <code>fdisk -l</code></li>
+                        <li><strong>SSD TRIM:</strong> If the drive has been in use since formatting, TRIM may have wiped all deleted data</li>
+                        <li><strong>Encrypted drive:</strong> BitLocker, LUKS, or FileVault encryption means raw bytes are meaningless without the key</li>
+                        <li><strong>Files too small:</strong> The tool ignores files smaller than ~20 bytes as false positives</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">❌ Scan is extremely slow</div>
+                    <p><strong>Fixes:</strong></p>
+                    <ul>
+                        <li>Increase block size: <code>-block-size 65536</code> (64KB blocks scan faster but may miss some files at unusual alignments)</li>
+                        <li>For huge drives, use <code>ntfs</code> or <code>ext4</code> mode instead of <code>carve</code> — they target specific structures instead of scanning everything</li>
+                        <li>USB 2.0 external drives are inherently slow (~30 MB/s). Use USB 3.0+ or direct SATA/NVMe connection.</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">❌ "failed to determine size" on block device</div>
+                    <p><strong>Cause:</strong> The tool uses <code>Seek</code> to find device size. Some unusual devices don't support this.</p>
+                    <p><strong>Fix:</strong> Create a disk image first, then recover from the image:</p>
+<pre><code><span class="comment"># Create an image of the drive (safe, read-only)</span>
+sudo dd if=/dev/sda of=/mnt/external/disk_image.img bs=4M status=progress
+
+<span class="comment"># Now recover from the image (can run multiple times safely)</span>
+./recover auto /mnt/external/disk_image.img ./recovered</code></pre>
+                </div>
+
+                <h3>Best Practices for Maximum Recovery</h3>
+                <table>
+                    <thead><tr><th>Situation</th><th>Recommended Action</th></tr></thead>
+                    <tbody>
+                        <tr><td>Just realized data was lost</td><td>Power off immediately. Boot from USB.</td></tr>
+                        <tr><td>Windows→Linux reformat</td><td>Try <code>ntfs</code> mode first, then <code>carve</code></td></tr>
+                        <tr><td>Deleted files on ext4</td><td>Use <code>ext4</code> mode (fastest, gets inode metadata)</td></tr>
+                        <tr><td>Drive completely unreadable</td><td>Use <code>dd</code> to image it first, then recover from image</td></tr>
+                        <tr><td>SSD drive</td><td>Act immediately — TRIM runs in background and erases data</td></tr>
+                        <tr><td>HDD drive</td><td>Higher recovery chance; data persists until overwritten</td></tr>
+                        <tr><td>Want original filenames</td><td><code>ntfs</code> mode (for Windows drives) recovers names</td></tr>
+                        <tr><td>Don't care about names</td><td><code>carve</code> mode works universally</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>When Recovery Is Impossible</h3>
+                <ul>
+                    <li><strong>Full disk encryption</strong> (BitLocker, LUKS, FileVault) without the key</li>
+                    <li><strong>Secure erase / zero-fill</strong> was performed</li>
+                    <li><strong>SSD TRIM</strong> has run since deletion (typically within minutes to hours)</li>
+                    <li><strong>Drive was heavily used</strong> after formatting (all old sectors overwritten)</li>
+                    <li><strong>Physical damage</strong> — head crash, burned controller, etc. (requires professional data recovery lab)</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 11: Extending File Types -->
+        <section id="extending">
+            <div class="section-card">
+                <h2>11. Adding Support for Any File Type</h2>
+                <p>The architecture is designed so adding new file types requires minimal changes. Here's a complete guide to supporting <strong>any</strong> file format.</p>
+
+                <h3>Understanding the Extension Pattern</h3>
+                <p>Recovery works by recognizing byte patterns. Every file format has some combination of:</p>
+                <ul>
+                    <li><strong>Magic header</strong> — fixed bytes at the start of the file</li>
+                    <li><strong>Footer/trailer</strong> — fixed bytes at the end (not all formats have this)</li>
+                    <li><strong>Internal structure</strong> — size fields, chunk markers, or other length indicators</li>
+                </ul>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 How to Find Magic Bytes</div>
+                    <p>Use <code>xxd filename | head</code> to see the hex bytes at the start of any file. Compare multiple files of the same type to find the constant prefix. You can also reference the <a href="https://en.wikipedia.org/wiki/List_of_file_signatures" target="_blank">Wikipedia list of file signatures</a> or the <code>file</code> command's magic database at <code>/usr/share/misc/magic</code>.</p>
+                </div>
+
+                <h3>Step 1: Define the Signature</h3>
+                <p>Edit <code>pkg/signature/signature.go</code> and add to the <code>Registry</code> slice:</p>
+
+                <h4>Example: JPEG Images</h4>
+<pre><code>{
+    Name:      <span class="string">"JPEG"</span>,
+    Extension: <span class="string">".jpg"</span>,
+    Header:    []<span class="type">byte</span>{<span class="number">0xFF</span>, <span class="number">0xD8</span>, <span class="number">0xFF</span>},
+    Footer:    []<span class="type">byte</span>{<span class="number">0xFF</span>, <span class="number">0xD9</span>},
+    MaxSize:   <span class="number">50</span> * <span class="number">1024</span> * <span class="number">1024</span>,  <span class="comment">// 50MB</span>
+},</code></pre>
+
+                <h4>Example: PNG Images</h4>
+<pre><code>{
+    Name:      <span class="string">"PNG"</span>,
+    Extension: <span class="string">".png"</span>,
+    Header:    []<span class="type">byte</span>{<span class="number">0x89</span>, <span class="number">0x50</span>, <span class="number">0x4E</span>, <span class="number">0x47</span>, <span class="number">0x0D</span>, <span class="number">0x0A</span>, <span class="number">0x1A</span>, <span class="number">0x0A</span>},
+    Footer:    []<span class="type">byte</span>{<span class="number">0x49</span>, <span class="number">0x45</span>, <span class="number">0x4E</span>, <span class="number">0x44</span>, <span class="number">0xAE</span>, <span class="number">0x42</span>, <span class="number">0x60</span>, <span class="number">0x82</span>},
+    MaxSize:   <span class="number">100</span> * <span class="number">1024</span> * <span class="number">1024</span>, <span class="comment">// 100MB</span>
+},</code></pre>
+
+                <h4>Example: MP4 Video</h4>
+<pre><code><span class="comment">// MP4 files have "ftyp" at offset 4 (not offset 0!)</span>
+<span class="comment">// This requires a custom approach — see "Advanced Signatures" below</span>
+{
+    Name:      <span class="string">"MP4"</span>,
+    Extension: <span class="string">".mp4"</span>,
+    Header:    []<span class="type">byte</span>{<span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x66</span>, <span class="number">0x74</span>, <span class="number">0x79</span>, <span class="number">0x70</span>},
+    Footer:    []<span class="type">byte</span>{},  <span class="comment">// No reliable footer — uses MaxSize</span>
+    MaxSize:   <span class="number">4</span> * <span class="number">1024</span> * <span class="number">1024</span> * <span class="number">1024</span>, <span class="comment">// 4GB</span>
+},</code></pre>
+
+                <h4>Example: SQLite Database</h4>
+<pre><code>{
+    Name:      <span class="string">"SQLite"</span>,
+    Extension: <span class="string">".db"</span>,
+    Header:    []<span class="type">byte</span>(<span class="string">"SQLite format 3\x00"</span>),
+    Footer:    []<span class="type">byte</span>{},  <span class="comment">// No footer — relies on size from header</span>
+    MaxSize:   <span class="number">1</span> * <span class="number">1024</span> * <span class="number">1024</span> * <span class="number">1024</span>, <span class="comment">// 1GB</span>
+},</code></pre>
+
+                <h3>Step 2: Register the Extension in the CLI</h3>
+                <p>In <code>cmd/recover/main.go</code>, update the <code>isTargetFile()</code> function:</p>
+<pre><code><span class="keyword">func</span> <span class="function">isTargetFile</span>(ext <span class="type">string</span>) <span class="type">bool</span> {
+    targets := <span class="keyword">map</span>[<span class="type">string</span>]<span class="type">bool</span>{
+        <span class="string">".pdf"</span>:  <span class="keyword">true</span>,
+        <span class="string">".zip"</span>:  <span class="keyword">true</span>,
+        <span class="string">".docx"</span>: <span class="keyword">true</span>,
+        <span class="string">".xlsx"</span>: <span class="keyword">true</span>,
+        <span class="string">".pptx"</span>: <span class="keyword">true</span>,
+        <span class="comment">// Add your new types here:</span>
+        <span class="string">".jpg"</span>:  <span class="keyword">true</span>,
+        <span class="string">".png"</span>:  <span class="keyword">true</span>,
+        <span class="string">".mp4"</span>:  <span class="keyword">true</span>,
+        <span class="string">".db"</span>:   <span class="keyword">true</span>,
+    }
+    <span class="keyword">return</span> targets[ext]
+}</code></pre>
+
+                <p>Also update <code>detectFileType()</code> for ext4 recovery (which identifies files by content, not name):</p>
+<pre><code><span class="keyword">func</span> <span class="function">detectFileType</span>(data []<span class="type">byte</span>) (<span class="type">string</span>, <span class="type">string</span>) {
+    <span class="comment">// JPEG</span>
+    <span class="keyword">if</span> data[<span class="number">0</span>] == <span class="number">0xFF</span> && data[<span class="number">1</span>] == <span class="number">0xD8</span> && data[<span class="number">2</span>] == <span class="number">0xFF</span> {
+        <span class="keyword">return</span> <span class="string">"JPEG"</span>, <span class="string">".jpg"</span>
+    }
+    <span class="comment">// PNG</span>
+    <span class="keyword">if</span> <span class="function">bytes.HasPrefix</span>(data, []<span class="type">byte</span>{<span class="number">0x89</span>, <span class="number">0x50</span>, <span class="number">0x4E</span>, <span class="number">0x47</span>}) {
+        <span class="keyword">return</span> <span class="string">"PNG"</span>, <span class="string">".png"</span>
+    }
+    <span class="comment">// ... add more detections</span>
+}</code></pre>
+
+                <h3>Step 3: Handle Files Without Footers</h3>
+                <p>Many formats (MP4, MP3, AVI, RAW photos) don't have a reliable footer. For these, you have options:</p>
+
+                <h4>Option A: Use MaxSize (simplest)</h4>
+                <p>Set a generous <code>MaxSize</code> and accept that recovered files may have trailing garbage. Most media players handle this gracefully.</p>
+
+                <h4>Option B: Parse Internal Length Fields</h4>
+                <p>Some formats encode their own size. Add a custom size calculator:</p>
+<pre><code><span class="comment">// Add to pkg/signature/signature.go</span>
+<span class="keyword">type</span> FileSignature <span class="keyword">struct</span> {
+    Name      <span class="type">string</span>
+    Extension <span class="type">string</span>
+    Header    []<span class="type">byte</span>
+    Footer    []<span class="type">byte</span>
+    MaxSize   <span class="type">int64</span>
+    <span class="comment">// NEW: Custom size detector function</span>
+    SizeFunc  <span class="keyword">func</span>(headerData []<span class="type">byte</span>) <span class="type">int64</span>
+}
+
+<span class="comment">// Example: PNG stores chunk sizes that can be summed</span>
+<span class="comment">// Example: MP4 "moov" atom contains total file structure</span>
+<span class="comment">// Example: WAV has file size at offset 4</span>
+{
+    Name:     <span class="string">"WAV"</span>,
+    Header:   []<span class="type">byte</span>(<span class="string">"RIFF"</span>),
+    SizeFunc: <span class="keyword">func</span>(data []<span class="type">byte</span>) <span class="type">int64</span> {
+        <span class="keyword">if</span> <span class="function">len</span>(data) < <span class="number">8</span> { <span class="keyword">return</span> <span class="number">0</span> }
+        <span class="comment">// Bytes 4-7 contain file size (minus 8 for header)</span>
+        size := binary.LittleEndian.<span class="function">Uint32</span>(data[<span class="number">4</span>:<span class="number">8</span>])
+        <span class="keyword">return</span> <span class="type">int64</span>(size) + <span class="number">8</span>
+    },
+}</code></pre>
+
+                <h4>Option C: Content Validation</h4>
+                <p>Read the file and validate its internal structure to determine the true endpoint:</p>
+<pre><code><span class="comment">// Add a Validator function to FileSignature</span>
+ValidateFunc <span class="keyword">func</span>(data []<span class="type">byte</span>) <span class="type">int64</span> <span class="comment">// Returns actual file size, 0 if invalid</span>
+
+<span class="comment">// Example: For JPEG, walk through JFIF markers to find true end</span>
+<span class="comment">// Example: For MP4, parse atom tree to determine boundaries</span></code></pre>
+
+                <h3>Common File Signatures Reference</h3>
+                <table>
+                    <thead><tr><th>Format</th><th>Header (hex)</th><th>Footer (hex)</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td>JPEG</td><td><code>FF D8 FF</code></td><td><code>FF D9</code></td><td>Footer is reliable</td></tr>
+                        <tr><td>PNG</td><td><code>89 50 4E 47 0D 0A 1A 0A</code></td><td><code>49 45 4E 44 AE 42 60 82</code></td><td>8-byte header + 8-byte IEND</td></tr>
+                        <tr><td>GIF</td><td><code>47 49 46 38</code></td><td><code>3B</code></td><td>"GIF8" + single-byte trailer</td></tr>
+                        <tr><td>BMP</td><td><code>42 4D</code></td><td>—</td><td>Size at offset 2 (4 bytes LE)</td></tr>
+                        <tr><td>MP3</td><td><code>FF FB</code> or <code>49 44 33</code></td><td>—</td><td>ID3 tag or frame sync</td></tr>
+                        <tr><td>MP4</td><td><code>66 74 79 70</code> at offset 4</td><td>—</td><td>Parse atom sizes</td></tr>
+                        <tr><td>AVI</td><td><code>52 49 46 46 ... 41 56 49</code></td><td>—</td><td>RIFF container, size in header</td></tr>
+                        <tr><td>WAV</td><td><code>52 49 46 46 ... 57 41 56 45</code></td><td>—</td><td>RIFF container, size in header</td></tr>
+                        <tr><td>7Z</td><td><code>37 7A BC AF 27 1C</code></td><td>—</td><td>Header contains archive size</td></tr>
+                        <tr><td>RAR</td><td><code>52 61 72 21 1A 07</code></td><td>—</td><td>"Rar!" magic</td></tr>
+                        <tr><td>EXE/DLL</td><td><code>4D 5A</code></td><td>—</td><td>"MZ" header, PE size in headers</td></tr>
+                        <tr><td>ELF</td><td><code>7F 45 4C 46</code></td><td>—</td><td>Section headers define size</td></tr>
+                        <tr><td>TIFF</td><td><code>49 49 2A 00</code> or <code>4D 4D 00 2A</code></td><td>—</td><td>Little/big endian variants</td></tr>
+                        <tr><td>PSD</td><td><code>38 42 50 53</code></td><td>—</td><td>"8BPS" Photoshop</td></tr>
+                        <tr><td>FLAC</td><td><code>66 4C 61 43</code></td><td>—</td><td>"fLaC" magic</td></tr>
+                        <tr><td>OGG</td><td><code>4F 67 67 53</code></td><td>—</td><td>"OggS" page marker</td></tr>
+                        <tr><td>WEBP</td><td><code>52 49 46 46 ... 57 45 42 50</code></td><td>—</td><td>RIFF container</td></tr>
+                        <tr><td>SQLite</td><td><code>53 51 4C 69 74 65</code></td><td>—</td><td>"SQLite" + page-size in header</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Advanced: Variable-Offset Headers</h3>
+                <p>Some formats (like MP4) don't start with their magic bytes at offset 0. To handle this, extend the signature system:</p>
+<pre><code><span class="keyword">type</span> FileSignature <span class="keyword">struct</span> {
+    <span class="comment">// ... existing fields ...</span>
+    HeaderOffset <span class="type">int</span>  <span class="comment">// Where the header appears relative to file start</span>
+}
+
+<span class="comment">// MP4: "ftyp" appears 4 bytes into the file</span>
+{
+    Name:         <span class="string">"MP4"</span>,
+    Extension:    <span class="string">".mp4"</span>,
+    Header:       []<span class="type">byte</span>{<span class="number">0x66</span>, <span class="number">0x74</span>, <span class="number">0x79</span>, <span class="number">0x70</span>}, <span class="comment">// "ftyp"</span>
+    HeaderOffset: <span class="number">4</span>, <span class="comment">// Skip first 4 bytes (size field)</span>
+}
+
+<span class="comment">// Then modify MatchHeader to account for offset:</span>
+<span class="keyword">func</span> (s *FileSignature) <span class="function">MatchHeader</span>(data []<span class="type">byte</span>) <span class="type">bool</span> {
+    start := s.HeaderOffset
+    <span class="keyword">if</span> <span class="function">len</span>(data) < start + <span class="function">len</span>(s.Header) {
+        <span class="keyword">return</span> <span class="keyword">false</span>
+    }
+    <span class="keyword">for</span> i, b := <span class="keyword">range</span> s.Header {
+        <span class="keyword">if</span> data[start+i] != b { <span class="keyword">return</span> <span class="keyword">false</span> }
+    }
+    <span class="keyword">return</span> <span class="keyword">true</span>
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Section 12: Adding Filesystem Support -->
+        <section id="filesystems">
+            <div class="section-card">
+                <h2>12. Adding Support for Any Filesystem</h2>
+                <p>To make the tool understand a new filesystem, you implement a <strong>parser package</strong> that knows how to read that filesystem's metadata structures and locate file data. Here's the complete pattern.</p>
+
+                <h3>The Filesystem Parser Interface</h3>
+                <p>Every filesystem parser in this tool follows the same logical contract:</p>
+<pre><code><span class="comment">// The pattern every filesystem module follows:</span>
+
+<span class="comment">// 1. Validate — confirm this disk/partition uses this filesystem</span>
+<span class="function">ParseBootSector</span>() / <span class="function">ParseSuperblock</span>()  → <span class="type">error</span>
+
+<span class="comment">// 2. Enumerate — find file entries (deleted or active)</span>
+<span class="function">ScanEntries</span>(callback)                   → <span class="type">error</span>
+
+<span class="comment">// 3. Recover — read the actual file data from disk</span>
+<span class="function">RecoverFileData</span>(entry)                  → []<span class="type">byte</span>, <span class="type">error</span></code></pre>
+
+                <h3>Step-by-Step: Implementing FAT32 Support</h3>
+                <p>Let's walk through adding FAT32 — used by USB drives, SD cards, and older Windows systems.</p>
+
+                <h4>1. Create the package</h4>
+<pre><code><span class="comment"># Create the directory</span>
+mkdir pkg/fat32</code></pre>
+
+                <h4>2. Define the structures</h4>
+<pre><code><span class="comment">// pkg/fat32/fat32.go</span>
+<span class="keyword">package</span> fat32
+
+<span class="keyword">import</span> (
+    <span class="string">"encoding/binary"</span>
+    <span class="string">"fmt"</span>
+    <span class="string">"github.com/aneesh/recovery-soft/pkg/scanner"</span>
+)
+
+<span class="comment">// FAT32 Boot Sector (BPB - BIOS Parameter Block)</span>
+<span class="keyword">type</span> BootSector <span class="keyword">struct</span> {
+    BytesPerSector    <span class="type">uint16</span>
+    SectorsPerCluster <span class="type">uint8</span>
+    ReservedSectors   <span class="type">uint16</span>
+    NumFATs           <span class="type">uint8</span>
+    FATSize32         <span class="type">uint32</span>
+    RootCluster       <span class="type">uint32</span> <span class="comment">// Usually cluster 2</span>
+    ClusterSize       <span class="type">int64</span>
+}
+
+<span class="comment">// DirectoryEntry represents a 32-byte FAT32 directory entry</span>
+<span class="keyword">type</span> DirectoryEntry <span class="keyword">struct</span> {
+    FileName     <span class="type">string</span>
+    Extension    <span class="type">string</span>
+    IsDeleted    <span class="type">bool</span>
+    IsDirectory  <span class="type">bool</span>
+    FileSize     <span class="type">uint32</span>
+    StartCluster <span class="type">uint32</span> <span class="comment">// First cluster of file data</span>
+}
+
+<span class="keyword">type</span> FAT32Parser <span class="keyword">struct</span> {
+    reader    *scanner.DiskReader
+    partition <span class="type">int64</span>
+    boot      *BootSector
+    fatStart  <span class="type">int64</span>  <span class="comment">// Byte offset of FAT table</span>
+    dataStart <span class="type">int64</span>  <span class="comment">// Byte offset of data region</span>
+}</code></pre>
+
+                <h4>3. Implement validation</h4>
+<pre><code><span class="keyword">func</span> (p *FAT32Parser) <span class="function">ParseBootSector</span>() <span class="type">error</span> {
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">512</span>)
+    p.reader.<span class="function">ReadAt</span>(buf, p.partition)
+
+    <span class="comment">// FAT32 identifier at offset 0x52</span>
+    fsType := <span class="function">string</span>(buf[<span class="number">0x52</span>:<span class="number">0x5A</span>])
+    <span class="keyword">if</span> fsType != <span class="string">"FAT32   "</span> {
+        <span class="keyword">return</span> fmt.<span class="function">Errorf</span>(<span class="string">"not FAT32 (got %q)"</span>, fsType)
+    }
+
+    p.boot = &BootSector{
+        BytesPerSector:    binary.LittleEndian.<span class="function">Uint16</span>(buf[<span class="number">0x0B</span>:<span class="number">0x0D</span>]),
+        SectorsPerCluster: buf[<span class="number">0x0D</span>],
+        ReservedSectors:   binary.LittleEndian.<span class="function">Uint16</span>(buf[<span class="number">0x0E</span>:<span class="number">0x10</span>]),
+        NumFATs:           buf[<span class="number">0x10</span>],
+        FATSize32:         binary.LittleEndian.<span class="function">Uint32</span>(buf[<span class="number">0x24</span>:<span class="number">0x28</span>]),
+        RootCluster:       binary.LittleEndian.<span class="function">Uint32</span>(buf[<span class="number">0x2C</span>:<span class="number">0x30</span>]),
+    }
+
+    <span class="comment">// Calculate derived values</span>
+    bps := <span class="type">int64</span>(p.boot.BytesPerSector)
+    p.boot.ClusterSize = bps * <span class="type">int64</span>(p.boot.SectorsPerCluster)
+    p.fatStart = p.partition + <span class="type">int64</span>(p.boot.ReservedSectors)*bps
+    fatSize := <span class="type">int64</span>(p.boot.FATSize32) * bps
+    p.dataStart = p.fatStart + fatSize*<span class="type">int64</span>(p.boot.NumFATs)
+
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+}</code></pre>
+
+                <h4>4. Implement directory scanning</h4>
+<pre><code><span class="keyword">func</span> (p *FAT32Parser) <span class="function">ScanDirectory</span>(cluster <span class="type">uint32</span>, callback <span class="keyword">func</span>(*DirectoryEntry)) <span class="type">error</span> {
+    <span class="comment">// Read the cluster containing directory entries</span>
+    offset := p.<span class="function">clusterToOffset</span>(cluster)
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, p.boot.ClusterSize)
+    p.reader.<span class="function">ReadAt</span>(buf, offset)
+
+    <span class="comment">// Each directory entry is 32 bytes</span>
+    <span class="keyword">for</span> i := <span class="number">0</span>; i < <span class="function">len</span>(buf); i += <span class="number">32</span> {
+        entry := buf[i : i+<span class="number">32</span>]
+        <span class="keyword">if</span> entry[<span class="number">0</span>] == <span class="number">0x00</span> { <span class="keyword">break</span> } <span class="comment">// End of directory</span>
+        <span class="keyword">if</span> entry[<span class="number">11</span>] == <span class="number">0x0F</span> { <span class="keyword">continue</span> } <span class="comment">// Long filename entry (skip)</span>
+
+        de := &DirectoryEntry{
+            IsDeleted: entry[<span class="number">0</span>] == <span class="number">0xE5</span>, <span class="comment">// 0xE5 = deleted marker</span>
+            FileSize:  binary.LittleEndian.<span class="function">Uint32</span>(entry[<span class="number">28</span>:<span class="number">32</span>]),
+        }
+        <span class="comment">// Start cluster: high 2 bytes at offset 20, low 2 bytes at offset 26</span>
+        de.StartCluster = <span class="type">uint32</span>(binary.LittleEndian.<span class="function">Uint16</span>(entry[<span class="number">20</span>:<span class="number">22</span>]))<<<span class="number">16</span> |
+                          <span class="type">uint32</span>(binary.LittleEndian.<span class="function">Uint16</span>(entry[<span class="number">26</span>:<span class="number">28</span>]))
+
+        <span class="comment">// Parse 8.3 filename</span>
+        de.FileName = <span class="function">strings.TrimRight</span>(<span class="function">string</span>(entry[<span class="number">0</span>:<span class="number">8</span>]), <span class="string">" "</span>)
+        de.Extension = <span class="function">strings.TrimRight</span>(<span class="function">string</span>(entry[<span class="number">8</span>:<span class="number">11</span>]), <span class="string">" "</span>)
+
+        callback(de)
+    }
+
+    <span class="comment">// Follow FAT chain to next cluster of this directory</span>
+    nextCluster := p.<span class="function">getNextCluster</span>(cluster)
+    <span class="keyword">if</span> nextCluster < <span class="number">0x0FFFFFF8</span> { <span class="comment">// Not end-of-chain</span>
+        p.<span class="function">ScanDirectory</span>(nextCluster, callback)
+    }
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+}
+
+<span class="comment">// Convert cluster number to byte offset on disk</span>
+<span class="keyword">func</span> (p *FAT32Parser) <span class="function">clusterToOffset</span>(cluster <span class="type">uint32</span>) <span class="type">int64</span> {
+    <span class="comment">// Clusters are numbered starting from 2</span>
+    <span class="keyword">return</span> p.dataStart + <span class="type">int64</span>(cluster-<span class="number">2</span>)*p.boot.ClusterSize
+}
+
+<span class="comment">// Read FAT table to find next cluster in chain</span>
+<span class="keyword">func</span> (p *FAT32Parser) <span class="function">getNextCluster</span>(cluster <span class="type">uint32</span>) <span class="type">uint32</span> {
+    offset := p.fatStart + <span class="type">int64</span>(cluster)*<span class="number">4</span>
+    buf := <span class="keyword">make</span>([]<span class="type">byte</span>, <span class="number">4</span>)
+    p.reader.<span class="function">ReadAt</span>(buf, offset)
+    <span class="keyword">return</span> binary.LittleEndian.<span class="function">Uint32</span>(buf) & <span class="number">0x0FFFFFFF</span>
+}</code></pre>
+
+                <h4>5. Implement data recovery</h4>
+<pre><code><span class="keyword">func</span> (p *FAT32Parser) <span class="function">RecoverFileData</span>(entry *DirectoryEntry) ([]<span class="type">byte</span>, <span class="type">error</span>) {
+    <span class="keyword">var</span> data []<span class="type">byte</span>
+    cluster := entry.StartCluster
+
+    <span class="keyword">for</span> cluster > <span class="number">0</span> && cluster < <span class="number">0x0FFFFFF8</span> {
+        offset := p.<span class="function">clusterToOffset</span>(cluster)
+        buf := <span class="keyword">make</span>([]<span class="type">byte</span>, p.boot.ClusterSize)
+        p.reader.<span class="function">ReadAt</span>(buf, offset)
+        data = <span class="function">append</span>(data, buf...)
+
+        <span class="comment">// Follow the FAT chain</span>
+        cluster = p.<span class="function">getNextCluster</span>(cluster)
+    }
+
+    <span class="comment">// Trim to actual file size</span>
+    <span class="keyword">if</span> <span class="type">int64</span>(<span class="function">len</span>(data)) > <span class="type">int64</span>(entry.FileSize) {
+        data = data[:entry.FileSize]
+    }
+    <span class="keyword">return</span> data, <span class="keyword">nil</span>
+}</code></pre>
+
+                <h4>6. Register in the CLI</h4>
+<pre><code><span class="comment">// In cmd/recover/main.go, add a new command:</span>
+<span class="keyword">case</span> <span class="string">"fat32"</span>:
+    <span class="function">runFAT32</span>(os.Args[<span class="number">2</span>:])
+
+<span class="comment">// And in runAuto(), add to the detection chain:</span>
+<span class="comment">// Try NTFS → ext4 → FAT32 → raw carving</span>
+fat32Parser, _ := fat32.<span class="function">NewParser</span>(reader, *partOffset)
+<span class="keyword">if</span> err := fat32Parser.<span class="function">ParseBootSector</span>(); err == <span class="keyword">nil</span> {
+    fmt.<span class="function">Println</span>(<span class="string">"[*] Detected FAT32 filesystem"</span>)
+    <span class="function">runFAT32</span>(newArgs)
+    <span class="keyword">return</span>
+}</code></pre>
+
+                <h3>Other Filesystems: What to Implement</h3>
+                <table>
+                    <thead><tr><th>Filesystem</th><th>Key Structures</th><th>Difficulty</th><th>Common On</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>FAT32</strong></td><td>Boot sector → FAT table → Directory entries</td><td>Medium</td><td>USB drives, SD cards</td></tr>
+                        <tr><td><strong>exFAT</strong></td><td>Boot sector → FAT → Directory entries (different format)</td><td>Medium</td><td>Large USB/SD, cameras</td></tr>
+                        <tr><td><strong>HFS+</strong></td><td>Volume header → Catalog B-tree → Extents</td><td>Hard</td><td>macOS (older)</td></tr>
+                        <tr><td><strong>APFS</strong></td><td>Container superblock → Volume → Object map → B-trees</td><td>Very Hard</td><td>macOS (modern), iOS</td></tr>
+                        <tr><td><strong>Btrfs</strong></td><td>Superblock → Chunk tree → FS tree → Extents</td><td>Hard</td><td>Linux (Fedora default)</td></tr>
+                        <tr><td><strong>XFS</strong></td><td>Superblock → AG headers → Inode chunks → B+trees</td><td>Hard</td><td>Linux (RHEL default)</td></tr>
+                        <tr><td><strong>ReFS</strong></td><td>Volume header → Object table → B+trees</td><td>Very Hard</td><td>Windows Server</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>The Universal Pattern</h3>
+                <p>Regardless of the filesystem, the implementation always follows this flow:</p>
+<pre><code><span class="comment">// Every filesystem recovery module:</span>
+
+<span class="comment">// 1. IDENTIFY — Read a known fixed location and check for magic bytes</span>
+<span class="comment">//    NTFS: "NTFS" at offset 3 of sector 0</span>
+<span class="comment">//    ext4: 0xEF53 at offset 0x438 (1080 bytes from partition start)</span>
+<span class="comment">//    FAT32: "FAT32   " at offset 0x52</span>
+<span class="comment">//    HFS+: "H+" at offset 1024</span>
+
+<span class="comment">// 2. GEOMETRY — Extract disk layout from the header</span>
+<span class="comment">//    Block/cluster size, metadata locations, total size</span>
+
+<span class="comment">// 3. LOCATE METADATA — Find the file index structure</span>
+<span class="comment">//    NTFS: MFT (pointed to by boot sector)</span>
+<span class="comment">//    ext4: Inode tables (pointed to by group descriptors)</span>
+<span class="comment">//    FAT32: Root directory (at a known cluster)</span>
+
+<span class="comment">// 4. ENUMERATE FILES — Walk the index looking for targets</span>
+<span class="comment">//    Check each entry for: deleted status, file type, size > 0</span>
+
+<span class="comment">// 5. FOLLOW DATA MAP — Read file content using the filesystem's mapping</span>
+<span class="comment">//    NTFS: Data runs (cluster offset + count pairs)</span>
+<span class="comment">//    ext4: Extents (block offset + length) or block pointers</span>
+<span class="comment">//    FAT32: Cluster chain (linked list via FAT table)</span></code></pre>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 When Filesystem Recovery Fails</div>
+                    <p>If the filesystem metadata itself was overwritten (new filesystem's structures landing on old metadata), the filesystem-aware parser won't work. That's why <code>carve</code> mode exists as an ultimate fallback — it needs zero metadata and works purely on file content signatures. A robust recovery tool always tries intelligent methods first, then falls back to brute-force carving.</p>
+                </div>
+
+                <h3>Architecture Tips for New Parsers</h3>
+                <ul>
+                    <li><strong>Keep the package self-contained</strong> — only depend on <code>pkg/scanner</code> for disk I/O</li>
+                    <li><strong>Handle partial corruption</strong> — never assume a structure is intact; always validate before parsing</li>
+                    <li><strong>Use <code>DiskReader.ReadAt</code></strong> — it's thread-safe and works on both files and block devices</li>
+                    <li><strong>Return errors, don't crash</strong> — a single corrupt entry shouldn't abort the entire scan</li>
+                    <li><strong>Expose a callback-based scan</strong> — this lets the CLI handle output incrementally</li>
+                    <li><strong>Test with disk images</strong> — use <code>dd</code> to create test images rather than accessing real disks</li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Back to Top Button -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
+
+    <script>
+        // Back to top button visibility
+        const backToTop = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+        });
+
+        backToTop.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Active sidebar link highlighting
+        const sections = document.querySelectorAll('section, .hero');
+        const navLinks = document.querySelectorAll('.sidebar nav a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (window.scrollY >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
