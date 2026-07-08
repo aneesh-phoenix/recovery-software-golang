@@ -20,6 +20,26 @@ const (
 	AttrEnd           = 0xFFFFFFFF
 	AttrIndexRoot     = 0x90
 	AttrIndexAlloc    = 0xA0
+
+	// Boot sector field offsets
+	bootOffSignature        = 0x03 // "NTFS" (4 bytes)
+	bootOffBytesPerSector   = 0x0B // uint16 LE
+	bootOffSectorsPerCluster = 0x0D // uint8
+	bootOffMFTCluster       = 0x30 // uint64 LE
+	bootOffMFTMirrCluster   = 0x38 // uint64 LE
+
+	// MFT entry header offsets
+	mftOffFixupOffset    = 0x04 // uint16 LE
+	mftOffFixupCount     = 0x06 // uint16 LE
+	mftOffFirstAttr      = 0x14 // uint16 LE — offset to first attribute
+	mftOffFlags          = 0x16 // uint16 LE — bit 0: in use, bit 1: directory
+	mftOffRecordNumber   = 0x2C // uint32 LE
+
+	// $FILE_NAME attribute content offsets (relative to content start)
+	fnOffParentRef = 0x00 // uint64 LE (lower 48 bits = parent MFT ref)
+	fnOffNameLen   = 0x40 // uint8 — character count
+	fnOffNamespace = 0x41 // uint8 — 0=POSIX, 1=Win32, 2=DOS, 3=Win32+DOS
+	fnOffName      = 0x42 // UTF-16LE name starts here
 )
 
 // BootSector represents key fields from the NTFS boot sector.
@@ -73,18 +93,18 @@ func (p *NTFSParser) ParseBootSector() error {
 		return fmt.Errorf("failed to read boot sector: %w", err)
 	}
 
-	// Verify NTFS signature at offset 3
-	if string(buf[3:7]) != "NTFS" {
-		return fmt.Errorf("not an NTFS filesystem (signature: %q)", string(buf[3:7]))
+	// Verify NTFS signature
+	if string(buf[bootOffSignature:bootOffSignature+4]) != "NTFS" {
+		return fmt.Errorf("not an NTFS filesystem (signature: %q)", string(buf[bootOffSignature:bootOffSignature+4]))
 	}
 
 	p.boot = &BootSector{
-		BytesPerSector:    binary.LittleEndian.Uint16(buf[0x0B:0x0D]),
-		SectorsPerCluster: buf[0x0D],
+		BytesPerSector:    binary.LittleEndian.Uint16(buf[bootOffBytesPerSector : bootOffBytesPerSector+2]),
+		SectorsPerCluster: buf[bootOffSectorsPerCluster],
 	}
 	p.boot.ClusterSize = int64(p.boot.BytesPerSector) * int64(p.boot.SectorsPerCluster)
-	p.boot.MFTCluster = int64(binary.LittleEndian.Uint64(buf[0x30:0x38]))
-	p.boot.MFTMirrCluster = int64(binary.LittleEndian.Uint64(buf[0x38:0x40]))
+	p.boot.MFTCluster = int64(binary.LittleEndian.Uint64(buf[bootOffMFTCluster : bootOffMFTCluster+8]))
+	p.boot.MFTMirrCluster = int64(binary.LittleEndian.Uint64(buf[bootOffMFTMirrCluster : bootOffMFTMirrCluster+8]))
 
 	return nil
 }
@@ -118,23 +138,21 @@ func (p *NTFSParser) ReadMFTEntry(offset int64) (*MFTEntry, error) {
 	entry := &MFTEntry{Offset: offset}
 
 	// Parse MFT entry header
-	// Offset 0x10: Sequence number
-	// Offset 0x14: First attribute offset
-	flags := binary.LittleEndian.Uint16(buf[0x16:0x18])
+	flags := binary.LittleEndian.Uint16(buf[mftOffFlags : mftOffFlags+2])
 	entry.InUse = flags&0x01 != 0
 	entry.IsDirectory = flags&0x02 != 0
-	entry.RecordNumber = binary.LittleEndian.Uint32(buf[0x2C:0x30])
+	entry.RecordNumber = binary.LittleEndian.Uint32(buf[mftOffRecordNumber : mftOffRecordNumber+4])
 
-	// Apply fixup array
-	fixupOffset := binary.LittleEndian.Uint16(buf[0x04:0x06])
-	fixupCount := binary.LittleEndian.Uint16(buf[0x06:0x08])
+	// Apply fixup array to correct sector-end bytes
+	fixupOffset := binary.LittleEndian.Uint16(buf[mftOffFixupOffset : mftOffFixupOffset+2])
+	fixupCount := binary.LittleEndian.Uint16(buf[mftOffFixupCount : mftOffFixupCount+2])
 	if err := applyFixup(buf, int(fixupOffset), int(fixupCount)); err != nil {
 		// Non-fatal, continue parsing
 		_ = err
 	}
 
-	// Parse attributes
-	attrOffset := int(binary.LittleEndian.Uint16(buf[0x14:0x16]))
+	// Walk attribute list starting from first attribute offset
+	attrOffset := int(binary.LittleEndian.Uint16(buf[mftOffFirstAttr : mftOffFirstAttr+2]))
 	for attrOffset < MFTEntrySize-8 {
 		attrType := binary.LittleEndian.Uint32(buf[attrOffset : attrOffset+4])
 		if attrType == AttrEnd || attrType == 0 {

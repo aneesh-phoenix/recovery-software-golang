@@ -62,6 +62,65 @@ func (d *DiskReader) Close() error {
 	return d.file.Close()
 }
 
+// SampleForZeroBlocks reads a sample of blocks from the disk and returns
+// the percentage of blocks that are entirely zeroed (indicating TRIM has run).
+// Samples up to 'sampleCount' blocks of 'blockSize' bytes at random offsets.
+func (d *DiskReader) SampleForZeroBlocks(blockSize int, sampleCount int) float64 {
+	if d.size == 0 || blockSize <= 0 || sampleCount <= 0 {
+		return 0.0
+	}
+
+	totalBlocks := d.size / int64(blockSize)
+	if totalBlocks == 0 {
+		return 0.0
+	}
+
+	// Limit sample count to available blocks
+	if int64(sampleCount) > totalBlocks {
+		sampleCount = int(totalBlocks)
+	}
+
+	// Use evenly spaced offsets across the disk
+	step := totalBlocks / int64(sampleCount)
+	if step == 0 {
+		step = 1
+	}
+
+	buf := make([]byte, blockSize)
+	zeroCount := 0
+	sampled := 0
+
+	for i := 0; i < sampleCount; i++ {
+		blockIdx := int64(i) * step
+		offset := blockIdx * int64(blockSize)
+		if offset+int64(blockSize) > d.size {
+			break
+		}
+
+		n, err := d.ReadAt(buf, offset)
+		if err != nil || n != blockSize {
+			continue
+		}
+
+		sampled++
+		allZero := true
+		for _, b := range buf[:n] {
+			if b != 0 {
+				allZero = false
+				break
+			}
+		}
+		if allZero {
+			zeroCount++
+		}
+	}
+
+	if sampled == 0 {
+		return 0.0
+	}
+	return float64(zeroCount) / float64(sampled) * 100.0
+}
+
 // ScanBlocks iterates over the disk in blocks of the given size,
 // calling the callback with offset and block data.
 // The callback should return true to continue scanning, false to stop.

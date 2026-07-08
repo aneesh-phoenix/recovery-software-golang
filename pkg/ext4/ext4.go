@@ -22,6 +22,34 @@ const (
 	// File type in inode mode
 	InodeModeRegFile = 0x8000
 	InodeModeDir     = 0x4000
+
+	// Inode field offsets within the on-disk inode structure
+	inodeOffMode         = 0x00
+	inodeOffSizeLo       = 0x04
+	inodeOffDeletionTime = 0x14
+	inodeOffLinksCount   = 0x1A
+	inodeOffBlocksLo     = 0x1C
+	inodeOffFlags        = 0x20
+	inodeOffBlockArea    = 0x28 // Start of block pointers or extent tree (60 bytes)
+	inodeOffBlockAreaEnd = 0x64 // End of block area
+	inodeOffSizeHi       = 0x6C
+
+	// Superblock field offsets (relative to start of superblock)
+	sbOffInodesCount    = 0x00
+	sbOffBlocksCountLo  = 0x04
+	sbOffFirstDataBlock = 0x14
+	sbOffLogBlockSize   = 0x18
+	sbOffBlocksPerGroup = 0x20
+	sbOffInodesPerGroup = 0x28
+	sbOffMagic          = 0x38
+	sbOffInodeSize      = 0x58
+	sbOffFeatureIncompat = 0x60
+	sbOffJournalInode   = 0xE0
+	sbOffGroupDescSize  = 0xFE
+	sbOffBlocksCountHi  = 0x150
+
+	// Journal (JBD2) constants
+	journalMagic = 0xC03B3998
 )
 
 // Superblock holds key ext4 superblock fields.
@@ -36,6 +64,7 @@ type Superblock struct {
 	FirstDataBlock uint32
 	GroupDescSize  uint16
 	Feature64bit   bool
+	JournalInode   uint32
 }
 
 // GroupDescriptor represents a block group descriptor.
@@ -52,16 +81,17 @@ type GroupDescriptor struct {
 
 // Inode represents a parsed ext4 inode.
 type Inode struct {
-	Number       uint32
-	Mode         uint16
-	Size         int64
-	Blocks       uint64
-	Flags        uint32
-	LinkCount    uint16
-	DeletionTime uint32
-	Extents      []Extent
-	ExtentRoot   []byte
-	BlockPtrs    [15]uint32
+	Number                 uint32
+	Mode                   uint16
+	Size                   int64
+	Blocks                 uint64
+	Flags                  uint32
+	LinkCount              uint16
+	DeletionTime           uint32
+	Extents                []Extent
+	ExtentRoot             []byte
+	BlockPtrs              [15]uint32
+	NeedsJournalRecovery   bool
 }
 
 // Extent represents an ext4 extent (for extent-based files).
@@ -110,32 +140,38 @@ func (p *Ext4Parser) ParseSuperblock() error {
 		return fmt.Errorf("failed to read superblock: %w", err)
 	}
 
-	magic := binary.LittleEndian.Uint16(buf[0x38:0x3A])
+	magic := binary.LittleEndian.Uint16(buf[sbOffMagic : sbOffMagic+2])
 	if magic != SuperblockMagic {
 		return fmt.Errorf("not an ext4 filesystem (magic: 0x%04X, expected 0x%04X)", magic, SuperblockMagic)
 	}
 
-	logBlockSize := binary.LittleEndian.Uint32(buf[0x18:0x1C])
+	logBlockSize := binary.LittleEndian.Uint32(buf[sbOffLogBlockSize : sbOffLogBlockSize+4])
 
 	p.sb = &Superblock{
-		TotalInodes:    binary.LittleEndian.Uint32(buf[0x00:0x04]),
+		TotalInodes:    binary.LittleEndian.Uint32(buf[sbOffInodesCount : sbOffInodesCount+4]),
 		BlockSize:      1024 << logBlockSize,
-		BlocksPerGroup: binary.LittleEndian.Uint32(buf[0x20:0x24]),
-		InodesPerGroup: binary.LittleEndian.Uint32(buf[0x28:0x2C]),
-		InodeSize:      binary.LittleEndian.Uint16(buf[0x58:0x5A]),
+		BlocksPerGroup: binary.LittleEndian.Uint32(buf[sbOffBlocksPerGroup : sbOffBlocksPerGroup+4]),
+		InodesPerGroup: binary.LittleEndian.Uint32(buf[sbOffInodesPerGroup : sbOffInodesPerGroup+4]),
+		InodeSize:      binary.LittleEndian.Uint16(buf[sbOffInodeSize : sbOffInodeSize+2]),
 		Magic:          magic,
-		FirstDataBlock: binary.LittleEndian.Uint32(buf[0x14:0x18]),
-		GroupDescSize:  binary.LittleEndian.Uint16(buf[0xFE:0x100]),
+		FirstDataBlock: binary.LittleEndian.Uint32(buf[sbOffFirstDataBlock : sbOffFirstDataBlock+4]),
+		GroupDescSize:  binary.LittleEndian.Uint16(buf[sbOffGroupDescSize : sbOffGroupDescSize+2]),
 	}
 
 	// Total blocks (handle 64-bit)
-	blocksLo := binary.LittleEndian.Uint32(buf[0x04:0x08])
-	blocksHi := binary.LittleEndian.Uint32(buf[0x150:0x154])
+	blocksLo := binary.LittleEndian.Uint32(buf[sbOffBlocksCountLo : sbOffBlocksCountLo+4])
+	blocksHi := binary.LittleEndian.Uint32(buf[sbOffBlocksCountHi : sbOffBlocksCountHi+4])
 	p.sb.TotalBlocks = uint64(blocksHi)<<32 | uint64(blocksLo)
 
 	// Check for 64-bit feature
-	featureIncompat := binary.LittleEndian.Uint32(buf[0x60:0x64])
+	featureIncompat := binary.LittleEndian.Uint32(buf[sbOffFeatureIncompat : sbOffFeatureIncompat+4])
 	p.sb.Feature64bit = featureIncompat&0x80 != 0
+
+	// Journal inode number
+	p.sb.JournalInode = binary.LittleEndian.Uint32(buf[sbOffJournalInode : sbOffJournalInode+4])
+	if p.sb.JournalInode == 0 {
+		p.sb.JournalInode = 8 // Default journal inode
+	}
 
 	if p.sb.InodeSize == 0 {
 		p.sb.InodeSize = 256
@@ -221,28 +257,29 @@ func (p *Ext4Parser) ReadInode(inodeNum uint32) (*Inode, error) {
 
 	inode := &Inode{
 		Number:       inodeNum,
-		Mode:         binary.LittleEndian.Uint16(buf[0x00:0x02]),
-		LinkCount:    binary.LittleEndian.Uint16(buf[0x1A:0x1C]),
-		Flags:        binary.LittleEndian.Uint32(buf[0x20:0x24]),
-		DeletionTime: binary.LittleEndian.Uint32(buf[0x14:0x18]),
+		Mode:         binary.LittleEndian.Uint16(buf[inodeOffMode : inodeOffMode+2]),
+		LinkCount:    binary.LittleEndian.Uint16(buf[inodeOffLinksCount : inodeOffLinksCount+2]),
+		Flags:        binary.LittleEndian.Uint32(buf[inodeOffFlags : inodeOffFlags+4]),
+		DeletionTime: binary.LittleEndian.Uint32(buf[inodeOffDeletionTime : inodeOffDeletionTime+4]),
 	}
 
 	// Size (combine low and high for large files)
-	sizeLo := binary.LittleEndian.Uint32(buf[0x04:0x08])
-	sizeHi := binary.LittleEndian.Uint32(buf[0x6C:0x70])
+	sizeLo := binary.LittleEndian.Uint32(buf[inodeOffSizeLo : inodeOffSizeLo+4])
+	sizeHi := binary.LittleEndian.Uint32(buf[inodeOffSizeHi : inodeOffSizeHi+4])
 	inode.Size = int64(sizeHi)<<32 | int64(sizeLo)
 
 	// Block count
-	blocksLo := binary.LittleEndian.Uint32(buf[0x1C:0x20])
+	blocksLo := binary.LittleEndian.Uint32(buf[inodeOffBlocksLo : inodeOffBlocksLo+4])
 	inode.Blocks = uint64(blocksLo)
 
-	// Parse block pointers or extents
+	// Parse block pointers or extents (60-byte area at offset 0x28)
 	if inode.Flags&InodeFlagExtents != 0 {
-		inode.ExtentRoot = append([]byte(nil), buf[0x28:0x64]...)
+		inode.ExtentRoot = append([]byte(nil), buf[inodeOffBlockArea:inodeOffBlockAreaEnd]...)
 		inode.Extents = parseExtents(inode.ExtentRoot)
 	} else {
 		for i := 0; i < 15; i++ {
-			inode.BlockPtrs[i] = binary.LittleEndian.Uint32(buf[0x28+i*4 : 0x28+i*4+4])
+			off := inodeOffBlockArea + i*4
+			inode.BlockPtrs[i] = binary.LittleEndian.Uint32(buf[off : off+4])
 		}
 	}
 
@@ -269,9 +306,288 @@ func (p *Ext4Parser) ScanDeletedInodes(maxGroups int, callback func(inode *Inode
 			}
 
 			if inode.IsDeleted() && inode.IsRegularFile() && inode.Size > 0 {
+				// Check if extent/block data has been zeroed by the kernel
+				inode.NeedsJournalRecovery = p.hasZeroedBlockData(inode)
 				callback(inode)
 			}
 		}
+	}
+
+	return nil
+}
+
+// hasZeroedBlockData checks if an inode's extent tree or block pointers are all zeros,
+// indicating the kernel zeroed them on deletion and journal recovery is needed.
+func (p *Ext4Parser) hasZeroedBlockData(inode *Inode) bool {
+	if inode.Flags&InodeFlagExtents != 0 {
+		// For extent-based inodes, check if the extent root area is all zeros
+		// or has no valid extents
+		if len(inode.ExtentRoot) == 0 {
+			return true
+		}
+		allZero := true
+		for _, b := range inode.ExtentRoot {
+			if b != 0 {
+				allZero = false
+				break
+			}
+		}
+		if allZero {
+			return true
+		}
+		// Check if extent magic is missing (kernel zeroed the tree)
+		if len(inode.ExtentRoot) >= 2 {
+			magic := binary.LittleEndian.Uint16(inode.ExtentRoot[0:2])
+			if magic != 0xF30A {
+				return true
+			}
+		}
+		// Check if all extents point to block 0
+		if len(inode.Extents) == 0 {
+			return true
+		}
+		for _, ext := range inode.Extents {
+			if ext.PhysicalBlock() != 0 {
+				return false
+			}
+		}
+		return true
+	}
+
+	// For legacy block pointer inodes, check if all pointers are zero
+	for _, ptr := range inode.BlockPtrs {
+		if ptr != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// ScanJournalForInodes reads the ext4 journal (jbd2) and scans for old copies
+// of deleted inodes that still have intact extent trees or block pointers.
+// The kernel zeroes extent/block data on deletion, but the journal retains
+// pre-deletion copies that can be used for data recovery.
+func (p *Ext4Parser) ScanJournalForInodes(callback func(inode *Inode)) error {
+	if p.sb == nil {
+		return fmt.Errorf("superblock not parsed")
+	}
+
+	journalInodeNum := p.sb.JournalInode
+	if journalInodeNum == 0 {
+		journalInodeNum = 8
+	}
+
+	// Read the journal inode itself
+	journalInode, err := p.ReadInode(journalInodeNum)
+	if err != nil {
+		return fmt.Errorf("failed to read journal inode %d: %w", journalInodeNum, err)
+	}
+
+	// Read journal data
+	journalData, err := p.RecoverInodeData(journalInode)
+	if err != nil {
+		return fmt.Errorf("failed to read journal data: %w", err)
+	}
+
+	if len(journalData) == 0 {
+		return fmt.Errorf("journal data is empty")
+	}
+
+	// Validate journal superblock magic (0xC03B3998 at offset 0, big-endian)
+	if len(journalData) >= 4 {
+		jsMagic := binary.BigEndian.Uint32(journalData[0:4])
+		if jsMagic != 0xC03B3998 {
+			return fmt.Errorf("invalid journal superblock magic: 0x%08X", jsMagic)
+		}
+	}
+
+	inodeSize := int(p.sb.InodeSize)
+	if inodeSize == 0 {
+		inodeSize = 256
+	}
+
+	// Track best inode per inode number (most recent DeletionTime wins)
+	type journalInodeEntry struct {
+		inode        *Inode
+		deletionTime uint32
+	}
+	found := make(map[uint32]*journalInodeEntry)
+
+	// Scan journal data at inode-size aligned offsets looking for deleted inode records
+	for off := 0; off+inodeSize <= len(journalData); off += inodeSize {
+		record := journalData[off : off+inodeSize]
+
+		// Check mode field (offset 0x00): must have regular file type bits
+		mode := binary.LittleEndian.Uint16(record[0x00:0x02])
+		if mode&0xF000 != InodeModeRegFile {
+			continue
+		}
+
+		// Check DeletionTime (offset 0x14): must be non-zero
+		deletionTime := binary.LittleEndian.Uint32(record[0x14:0x18])
+		if deletionTime == 0 {
+			continue
+		}
+
+		// Check Size > 0 (low at 0x04, high at 0x6C)
+		sizeLo := binary.LittleEndian.Uint32(record[0x04:0x08])
+		var sizeHi uint32
+		if inodeSize > 0x70 {
+			sizeHi = binary.LittleEndian.Uint32(record[0x6C:0x70])
+		}
+		size := int64(sizeHi)<<32 | int64(sizeLo)
+		if size <= 0 {
+			continue
+		}
+
+		// Check for usable extent/block pointer data at offset 0x28
+		blockArea := record[0x28:0x64]
+		hasExtentMagic := binary.LittleEndian.Uint16(blockArea[0:2]) == 0xF30A
+		hasNonZeroBlocks := false
+
+		if !hasExtentMagic {
+			// Check if any block pointer in the 60-byte area is non-zero
+			for i := 0; i+4 <= len(blockArea); i += 4 {
+				if binary.LittleEndian.Uint32(blockArea[i:i+4]) != 0 {
+					hasNonZeroBlocks = true
+					break
+				}
+			}
+		}
+
+		if !hasExtentMagic && !hasNonZeroBlocks {
+			// No usable block/extent data
+			continue
+		}
+
+		// Parse the flags
+		flags := binary.LittleEndian.Uint32(record[0x20:0x24])
+		linkCount := binary.LittleEndian.Uint16(record[0x1A:0x1C])
+		blocksLo := binary.LittleEndian.Uint32(record[0x1C:0x20])
+
+		// Build the inode
+		inode := &Inode{
+			Mode:         mode,
+			Size:         size,
+			Flags:        flags,
+			LinkCount:    linkCount,
+			DeletionTime: deletionTime,
+			Blocks:       uint64(blocksLo),
+		}
+
+		if flags&InodeFlagExtents != 0 && hasExtentMagic {
+			inode.ExtentRoot = append([]byte(nil), blockArea...)
+			inode.Extents = parseExtents(inode.ExtentRoot)
+		} else if hasNonZeroBlocks {
+			for i := 0; i < 15 && (i*4+4) <= len(blockArea); i++ {
+				inode.BlockPtrs[i] = binary.LittleEndian.Uint32(blockArea[i*4 : i*4+4])
+			}
+		}
+
+		// We cannot determine the exact inode number from journal data alone,
+		// so we use a hash of the key fields to deduplicate.
+		// Attempt to identify by size + deletion time as a dedup key.
+		// A better approach: try to match against known deleted inodes.
+		// For now, use offset-based numbering as a synthetic inode number.
+		syntheticNum := uint32(off / inodeSize)
+		inode.Number = syntheticNum
+
+		existing, ok := found[syntheticNum]
+		if !ok || deletionTime > existing.deletionTime {
+			found[syntheticNum] = &journalInodeEntry{
+				inode:        inode,
+				deletionTime: deletionTime,
+			}
+		}
+	}
+
+	// Also scan at block-size aligned offsets to catch inodes that appear
+	// at the start of journal data blocks (more likely positions)
+	blockSize := int(p.sb.BlockSize)
+	if blockSize > 0 {
+		for off := blockSize; off+inodeSize <= len(journalData); off += blockSize {
+			// Try each inode-sized slot within this block
+			for slot := 0; slot+inodeSize <= blockSize; slot += inodeSize {
+				pos := off + slot
+				if pos+inodeSize > len(journalData) {
+					break
+				}
+				record := journalData[pos : pos+inodeSize]
+
+				mode := binary.LittleEndian.Uint16(record[0x00:0x02])
+				if mode&0xF000 != InodeModeRegFile {
+					continue
+				}
+
+				deletionTime := binary.LittleEndian.Uint32(record[0x14:0x18])
+				if deletionTime == 0 {
+					continue
+				}
+
+				sizeLo := binary.LittleEndian.Uint32(record[0x04:0x08])
+				var sizeHi uint32
+				if inodeSize > 0x70 {
+					sizeHi = binary.LittleEndian.Uint32(record[0x6C:0x70])
+				}
+				size := int64(sizeHi)<<32 | int64(sizeLo)
+				if size <= 0 {
+					continue
+				}
+
+				blockArea := record[0x28:0x64]
+				hasExtentMagic := binary.LittleEndian.Uint16(blockArea[0:2]) == 0xF30A
+				hasNonZeroBlocks := false
+				if !hasExtentMagic {
+					for i := 0; i+4 <= len(blockArea); i += 4 {
+						if binary.LittleEndian.Uint32(blockArea[i:i+4]) != 0 {
+							hasNonZeroBlocks = true
+							break
+						}
+					}
+				}
+				if !hasExtentMagic && !hasNonZeroBlocks {
+					continue
+				}
+
+				flags := binary.LittleEndian.Uint32(record[0x20:0x24])
+				linkCount := binary.LittleEndian.Uint16(record[0x1A:0x1C])
+				blocksLo := binary.LittleEndian.Uint32(record[0x1C:0x20])
+
+				inode := &Inode{
+					Mode:         mode,
+					Size:         size,
+					Flags:        flags,
+					LinkCount:    linkCount,
+					DeletionTime: deletionTime,
+					Blocks:       uint64(blocksLo),
+				}
+
+				if flags&InodeFlagExtents != 0 && hasExtentMagic {
+					inode.ExtentRoot = append([]byte(nil), blockArea...)
+					inode.Extents = parseExtents(inode.ExtentRoot)
+				} else if hasNonZeroBlocks {
+					for i := 0; i < 15 && (i*4+4) <= len(blockArea); i++ {
+						inode.BlockPtrs[i] = binary.LittleEndian.Uint32(blockArea[i*4 : i*4+4])
+					}
+				}
+
+				syntheticNum := uint32(pos / inodeSize)
+				inode.Number = syntheticNum
+
+				existing, ok := found[syntheticNum]
+				if !ok || deletionTime > existing.deletionTime {
+					found[syntheticNum] = &journalInodeEntry{
+						inode:        inode,
+						deletionTime: deletionTime,
+					}
+				}
+			}
+		}
+	}
+
+	// Deliver all found inodes to the callback
+	for _, entry := range found {
+		callback(entry.inode)
 	}
 
 	return nil

@@ -104,6 +104,12 @@ NOTES:
     - The sooner you run this after data loss, the better`)
 }
 
+// ============================================================================
+// Recovery Commands
+// ============================================================================
+
+// runCarve performs raw file carving — scans disk bytes for known file
+// signatures (PDF, ZIP) regardless of filesystem. Works on any disk.
 func runCarve(args []string) {
 	fs := flag.NewFlagSet("carve", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "Verbose output")
@@ -143,6 +149,13 @@ func runCarve(args []string) {
 		fmt.Println("[*] Scanning for PDF and ZIP files (ZIPs are classified as DOCX/XLSX/PPTX when applicable)...")
 	} else {
 		fmt.Println("[*] Scanning selected file types...")
+	}
+
+	// Check for TRIM/zeroed blocks
+	zeroPercent := c.Reader().SampleForZeroBlocks(4096, 256)
+	if zeroPercent > 50 {
+		fmt.Printf("[!] WARNING: %.0f%% of sampled disk blocks are zeroed. This indicates SSD TRIM has run.\n", zeroPercent)
+		fmt.Println("[!] Recovery chances are significantly reduced. Recently deleted files may be unrecoverable.")
 	}
 
 	startTime := time.Now()
@@ -192,6 +205,8 @@ func runCarve(args []string) {
 	}
 }
 
+// runNTFS recovers files by parsing the NTFS Master File Table (MFT).
+// Reads MFT entries to find file names and data run locations.
 func runNTFS(args []string) {
 	fs := flag.NewFlagSet("ntfs", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "Verbose output")
@@ -241,6 +256,13 @@ func runNTFS(args []string) {
 	boot := parser.BootInfo()
 	fmt.Printf("[*] Cluster size: %d bytes\n", boot.ClusterSize)
 	fmt.Printf("[*] MFT at cluster: %d (offset: 0x%X)\n", boot.MFTCluster, parser.MFTOffset())
+
+	// TRIM detection
+	zeroPercent := reader.SampleForZeroBlocks(4096, 256)
+	if zeroPercent > 50 {
+		fmt.Printf("\n[!] WARNING: %.0f%% of sampled disk blocks are zeroed. This indicates SSD TRIM has run.\n", zeroPercent)
+		fmt.Println("[!] Recovery chances are significantly reduced. Recently deleted files may be unrecoverable.")
+	}
 
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output dir: %v\n", err)
@@ -292,6 +314,14 @@ func runNTFS(args []string) {
 			return
 		}
 
+		// Validate recovered file content before saving
+		if !carver.ValidateRecoveredFile(data, ext, *verbose) {
+			if *verbose {
+				fmt.Printf("[-] Rejected %s: content validation failed\n", entry.FileName)
+			}
+			return
+		}
+
 		// Save recovered file
 		count++
 		outPath := fmt.Sprintf("%s/ntfs_%04d_%s", outputDir, count, sanitizeFilename(entry.FileName))
@@ -325,6 +355,8 @@ func runNTFS(args []string) {
 	}
 }
 
+// runExt4 recovers files from ext4 by scanning inode tables for deleted entries
+// and parsing the filesystem journal for inode data that was zeroed on deletion.
 func runExt4(args []string) {
 	fs := flag.NewFlagSet("ext4", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "Verbose output")
@@ -376,6 +408,13 @@ func runExt4(args []string) {
 	fmt.Printf("[*] Total inodes: %d\n", sb.TotalInodes)
 	fmt.Printf("[*] Inodes per group: %d\n", sb.InodesPerGroup)
 
+	// TRIM detection
+	zeroPercent := reader.SampleForZeroBlocks(4096, 256)
+	if zeroPercent > 50 {
+		fmt.Printf("\n[!] WARNING: %.0f%% of sampled disk blocks are zeroed. This indicates SSD TRIM has run.\n", zeroPercent)
+		fmt.Println("[!] Recovery chances are significantly reduced. Recently deleted files may be unrecoverable.")
+	}
+
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output dir: %v\n", err)
 		os.Exit(1)
@@ -416,6 +455,14 @@ func runExt4(args []string) {
 			return
 		}
 
+		// Validate recovered file content before saving
+		if !carver.ValidateRecoveredFile(data, ext, *verbose) {
+			if *verbose {
+				fmt.Printf("[-] Rejected inode %d: %s content validation failed\n", inode.Number, fileType)
+			}
+			return
+		}
+
 		count++
 		outPath := fmt.Sprintf("%s/ext4_%04d_inode%d%s", outputDir, count, inode.Number, ext)
 		if err := os.WriteFile(outPath, data, 0o644); err != nil {
@@ -441,6 +488,70 @@ func runExt4(args []string) {
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error scanning inodes: %v\n", err)
+	}
+
+	// Attempt journal-based recovery for inodes with zeroed extents/blocks
+	fmt.Println("[*] Scanning ext4 journal for recoverable inode data...")
+	journalCount := 0
+	err = parser.ScanJournalForInodes(func(inode *ext4.Inode) {
+		if *verbose {
+			fmt.Printf("[+] Found inode %d in journal (size: %d bytes)\n", inode.Number, inode.Size)
+		}
+
+		data, err := parser.RecoverInodeData(inode)
+		if err != nil {
+			if *verbose {
+				fmt.Printf("[-] Failed to recover journal inode %d: %v\n", inode.Number, err)
+			}
+			return
+		}
+
+		if len(data) == 0 {
+			return
+		}
+
+		fileType, ext := detectFileType(data)
+		if !isTargetFile(ext, targetTypes) {
+			return
+		}
+
+		if !carver.ValidateRecoveredFile(data, ext, *verbose) {
+			if *verbose {
+				fmt.Printf("[-] Rejected journal inode %d: %s content validation failed\n", inode.Number, fileType)
+			}
+			return
+		}
+
+		count++
+		journalCount++
+		outPath := fmt.Sprintf("%s/ext4_%04d_journal_inode%d%s", outputDir, count, inode.Number, ext)
+		if err := os.WriteFile(outPath, data, 0o644); err != nil {
+			if *verbose {
+				fmt.Printf("[-] Failed to write %s: %v\n", outPath, err)
+			}
+			return
+		}
+
+		report.FilesFound++
+		report.FilesByType[fileType]++
+		report.Entries = append(report.Entries, output.ReportEntry{
+			FileName:   outPath,
+			FileType:   fileType,
+			Size:       int64(len(data)),
+			DiskOffset: 0,
+			Source:     "ext4_journal",
+		})
+
+		fmt.Printf("[✓] Recovered from journal: inode %d → %s (%s, %d bytes)\n",
+			inode.Number, outPath, fileType, len(data))
+	})
+	if err != nil {
+		if *verbose {
+			fmt.Printf("[-] Journal scan: %v\n", err)
+		}
+	}
+	if journalCount > 0 {
+		fmt.Printf("[*] Recovered %d additional files from journal\n", journalCount)
 	}
 
 	output.PrintSummary(report)
@@ -477,6 +588,13 @@ func runAuto(args []string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Check for TRIM/zeroed blocks
+	zeroPercent := reader.SampleForZeroBlocks(4096, 256)
+	if zeroPercent > 50 {
+		fmt.Printf("[!] WARNING: %.0f%% of sampled disk blocks are zeroed. This indicates SSD TRIM has run.\n", zeroPercent)
+		fmt.Println("[!] Recovery chances are significantly reduced. Recently deleted files may be unrecoverable.")
 	}
 
 	// Try NTFS first
@@ -764,6 +882,18 @@ func runInteractive() {
 	fmt.Println("═══════════════════════════════════════════════════════════════")
 	fmt.Println()
 
+	// Check for TRIM/zeroed blocks before starting recovery
+	trimReader, trimErr := scanner.NewDiskReader(sourcePath)
+	if trimErr == nil {
+		zeroPercent := trimReader.SampleForZeroBlocks(4096, 256)
+		trimReader.Close()
+		if zeroPercent > 50 {
+			fmt.Printf("[!] WARNING: %.0f%% of sampled disk blocks are zeroed. This indicates SSD TRIM has run.\n", zeroPercent)
+			fmt.Println("[!] Recovery chances are significantly reduced. Recently deleted files may be unrecoverable.")
+			fmt.Println()
+		}
+	}
+
 	// Build args and dispatch
 	var args []string
 	if verbose {
@@ -785,6 +915,10 @@ func runInteractive() {
 		runCarve(args)
 	}
 }
+
+// ============================================================================
+// Disk Enumeration (Cross-Platform)
+// ============================================================================
 
 // listDisks enumerates disks and partitions (cross-platform).
 func listDisks() []diskInfo {
@@ -1148,7 +1282,9 @@ func isOnSameDevice(sourcePath, outputDir string) bool {
 	return strings.HasPrefix(outputDevice, sourceBase)
 }
 
-// Helper functions
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
 // isElevated checks if the process has root/admin privileges.
 func isElevated() bool {
